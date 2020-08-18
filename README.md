@@ -1,2 +1,2 @@
-# viquip-dia
-Tasques variades a la Viquipèdia
+# viquipèdia
+Tasques variades a la Viquipèdia.
