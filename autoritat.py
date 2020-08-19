@@ -1,3 +1,5 @@
+#-*- coding: utf-8 -*-
+
 # programa per posar la plantilla autoritat
 import requests
 import json
