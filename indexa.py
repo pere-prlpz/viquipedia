@@ -37,6 +37,12 @@ for pag in pags:
     print (pag)
     textvell=pag.get()
     tit=pag.title()
+    ord = re.search("\{\{ORDENA:(.+?)\}\}", textvell)
+    if ord:
+        ordena = ord.group(1)
+        print("ORDENA:", ordena)
+    else:
+        ordena = tit
     index=tit
     index=re.sub("^("+tcat+"|"+tcats+u") (del |de la |de l'|dels |de les )","",index)
     index=re.sub("^("+tcat+"|"+tcats+u") (de |d')","",index)
@@ -45,7 +51,7 @@ for pag in pags:
     index=re.sub("[·-]","",index)
     index=noaccents(index).title()
     print (index)
-    if index != tit and index0 != tit and len(index)>0:
+    if index != tit and index0 != tit and index != ordena and index0 != ordena and len(index)>0:
         #index=index[0].upper()+index[1:]
         print (index)
         noutext=re.sub("\[\[ ?[Cc]ategoria: ?"+retcat+u" ?\]\]", "[[Categoria:"+tcat+u"|"+index+u"]]",textvell)
