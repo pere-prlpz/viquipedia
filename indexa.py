@@ -10,6 +10,9 @@
 # python indexa.py "Avingudes d'Alacant" "Avinguda"
 # python indexa.py "Arxius municipals del País Valencià" "(Arxiu Municipal|Arxiu Històric Municipal)"
 # python indexa.py "Eleccions del 2016" "(Eleccions ?(parlamentàries|generals|legislatives|regionals|provincials|presidencials|cantonals|federals)?( al)?)"
+# python indexa.py "Pollimyrus"
+# Si algun dels dos paràmetres té una sola paraula (sense espais) no calen les cometes:
+# python indexa.py "Fonts de Teià" Font
 
 import re
 import sys
@@ -40,7 +43,11 @@ cat = pwb.Category(site,'Category:'+tcat)
 pags = pagegenerators.CategorizedPageGenerator(cat, recurse=False)
 for pag in pags:
     print (pag)
-    textvell=pag.get()
+    try:
+        textvell=pag.get()
+    except pwb.IsRedirectPage:
+        print("Redirecció")
+        continue
     tit=pag.title()
     ord = re.search("\{\{ORDENA:(.+?)\}\}", textvell)
     if ord:
@@ -52,14 +59,14 @@ for pag in pags:
     #index=re.sub("^("+tcats+") (del |de la |de l'|dels |de les )","",index)
     #index=re.sub("^("+tcats+") (de |d')","",index)
     index=re.sub("^("+tcats+") ","",index)
-    index=re.sub("^(del |de la |de l'|dels |de les )","", index)
-    index=re.sub("^(de |d')","", index)    
+    index=re.sub("^(del |de la |de l'|dels |de les |d'en |de na |al |a la |als |a les |a l')","", index)
+    index=re.sub("^(de |d'|a )","", index)    
     index=re.sub("^(el |la |l'|els |les )","", index)
     index0=index[:]
-    index=re.sub("[·\-\)\(]","",index)
+    index=re.sub("[·\-\)\(«»,\.\:]","",index)
     index=noaccents(index).title().strip()
     print (index)
-    if index != tit and index0 != tit and index != ordena and index0 != ordena and len(index)>0:
+    if index != tit and index0 != tit and index != ordena and index0 != ordena and not ordena.startswith(index) and len(index)>0:
         #index=index[0].upper()+index[1:]
         print (index)
         noutext=re.sub("\[\[ ?[Cc]ategoria: ?"+retcat+u" ?\]\]", "[[Categoria:"+tcat+u"|"+index+u"]]",textvell)
