@@ -1,6 +1,13 @@
 #-*- coding: utf-8 -*-
 
 # programa per posar les categories d'estudiants per universitat
+# Arguments:
+# -noeditis No edita. Només dóna informació de les categories que falten.
+# -disc No fa una query sinó que agafa els resultats del disc
+# -discvp No llegeix la viquipèdia sinó el disc (per decidir què ha d'editar)
+# Exemple:
+# python universitats.py -noeditis
+
 import pywikibot as pwb
 from pywikibot import pagegenerators
 from SPARQLWrapper import SPARQLWrapper, JSON
@@ -163,9 +170,15 @@ uniwp = artcats(list(unisi), disc=discvp, desa=True)
 total = 0
 tots= set([])
 print ("Informació: categories per crear")
+tunino = []
 for uni in unino.keys():
     if unino[uni]>50:
         print(uni, unino[uni])
+        tunino.append((unino[uni],uni.replace("http://www.wikidata.org/entity/Q","")))
+tunino = sorted(tunino, reverse=Truegit)
+print(tunino)
+for tuni in tunino:
+    print("* {{Q|"+tuni[1]+"}}", tuni[0]) 
 # comptar:
 print ("Comptant articles:")
 for cat in unisi:
