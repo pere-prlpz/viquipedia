@@ -185,16 +185,22 @@ def creacategories(quni, edita=True, site=pwb.Site('ca')):
             nomcat="Alumnes de la "+nom
         elif re.match("^(Hochschule|Scuola|Institución|KU) ",nom):
             nomcat="Alumnes de la "+nom
-        elif re.match("^(Escola|Institut|ETH|Acadèmia|École)", nom):
+        elif re.match("^(Escola|Institut|ETH|Acadèmia|Accademia|École)", nom):
             nomcat="Alumnes de l'"+nom
-        elif re.match("^(Conservatori|L[iy]c|Col·legi|Coll[èe]ge|Centre)", nom):
+        elif re.match("^(Conservatori|L[iy]c|Col·legi|Coll[èe]ge|Centre|Prytanée)", nom):
             nomcat="Alumnes del "+nom
         elif re.match("^[AEIOU]", nom):
             nomcat="Alumnes de l'"+nom
-        elif re.match("^.*(College|Institut|Conservator[iy])", nom):
+        elif re.match("^.*(College|Institut|Conservator[iy]|Studio|Center)", nom):
             nomcat="Alumnes del "+nom
-        elif re.match("^.*(School)", nom):
+        elif re.match("^.*(School|Academie)", nom):
             nomcat="Alumnes de la "+nom
+        elif nom  in ["Bauhaus"]:
+            nomcat="Alumnes de la "+nom
+        elif nom  in ["Mozarteum"]:
+            nomcat="Alumnes del "+nom
+        elif nom  in ["Goldsmiths"]:
+            nomcat="Alumnes de "+nom
         else:
             print("NO PUC CONFEGIR EL NOM DE LA CATEGORIA:", nom)
             continue
@@ -215,10 +221,13 @@ def creacategories(quni, edita=True, site=pwb.Site('ca')):
         instruccio = qcat + '|Scawiki|"Categoria:'+nomcat+'"||'
         print(text)
         print(instruccio)
-        instruccions = instruccions + instruccio
         if edita:
             pag=pwb.Page(site, "Categoria:"+nomcat)
-            pag.put(text, "Robot crea categoria a partir de Wikidata")
+            if pag.exists():
+                print("Ja existeix la categoria", pag)
+            else:
+                pag.put(text, "Robot crea categoria a partir de Wikidata")
+        instruccions = instruccions + instruccio
     print("Instruccions pel quickstatements:")
     print(instruccions)
     return
@@ -270,14 +279,14 @@ for uni in unino.keys():
         print(uni, unino[uni])
         tunino.append((unino[uni],uni.replace("http://www.wikidata.org/entity/Q","")))
 tunino = sorted(tunino, reverse=True)
-print(tunino)
-textunino = "Centres educatius que apareixen a {{P|69}} de persones amb article"
-textunino = textunino + "però sense categoria a la Viquipèdia, i nombre"
+#print(tunino)
+textunino = "Centres educatius que apareixen a {{P|69}} de persones amb article "
+textunino = textunino + "però sense categoria a la Viquipèdia, i nombre "
 textunino = textunino + "d'articles que hi anirien si existís.\n\n"
 textunino = textunino + "No tots són categories a crear.\n\n"
 for tuni in tunino:
-    textunino = textunino + "* {{Q|"+tuni[1]+"}}:"+str(tuni[0])+"\n"
-    print("* {{Q|"+tuni[1]+"}}", tuni[0]) 
+    textunino = textunino + "# {{Q|"+tuni[1]+"}}:"+str(tuni[0])+"\n"
+    #print("* {{Q|"+tuni[1]+"}}", tuni[0]) 
     qunino.append("Q"+tuni[1])
 if edita or creacat:
     pag = pwb.Page(pwb.Site('ca'), "Usuari:PereBot/centres educatius")
