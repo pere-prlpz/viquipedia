@@ -99,7 +99,7 @@ def artcat(catnom, site=pwb.Site('ca')):
     return(llistart)
 
 def artcats(catnoms, desa=True, disc= False, site=pwb.Site('ca')):
-    # diccionari amb llistes d'articles d'una llista de categoria
+    # diccionari amb llistes d'articles d'una llista de categories
     if disc:
         print("llegint categories del disc")
         dicc=pickle.load(open(r"C:\Users\Pere\Documents\perebot\estcats.pkl", "rb"))
@@ -183,23 +183,37 @@ def creacategories(quni, edita=True, site=pwb.Site('ca')):
             print("Nom a partir de label:", nom)
         if re.match("^(Universitat|Facultat|Reial Acadèmia|Royal Academy|Institució)",nom):
             nomcat="Alumnes de la "+nom
-        elif re.match("^(Hochschule|Scuola|Institución|KU) ",nom):
+        elif re.match("^(Hochschule|Sc[uh]ola|Institución?|KU|Pontifícia|HEC|Mesquita|Vrije Universiteit) ",nom):
             nomcat="Alumnes de la "+nom
-        elif re.match("^(Escola|Institut|ETH|Acadèmia|Accademia|École)", nom):
+        elif re.match("^(Reial (Escola|Acadèmia|Universitat)) ",nom):
+            nomcat="Alumnes de la "+nom
+        elif re.match("^(Queen's|Presidency) (University)",nom):
+            nomcat="Alumnes de la "+nom
+        elif re.match("^(Escola|Institut|ETH|Acadèmia|Accademia|École) ", nom):
             nomcat="Alumnes de l'"+nom
-        elif re.match("^(Conservatori|L[iy]c|Col·legi|Coll[èe]ge|Centre|Prytanée)", nom):
+        elif re.match("^(Reial )?(Conservat(ori|oire)|L[iy]cé?eu?|Col·legi|Coll[èe]ge) ", nom):
             nomcat="Alumnes del "+nom
-        elif re.match("^[AEIOU]", nom):
+        elif re.match("^(Seminari|Cos) ", nom):
+            nomcat="Alumnes del "+nom
+        elif re.match("^(Centre|Prytanée|Cours|Pontifici|Colegio|Politècnic|Programa) ", nom):
+            nomcat="Alumnes del "+nom
+        elif re.match("^[AEIOUÈÉaeiou]", nom):
             nomcat="Alumnes de l'"+nom
-        elif re.match("^.*(College|Institut|Conservator[iy]|Studio|Center)", nom):
+        elif re.match("^(The|Det) ", nom):
+            nomcat="Alumnes de "+nom
+        elif re.match(".*(Hall|Studio|Institute|Hospital)$", nom):
             nomcat="Alumnes del "+nom
-        elif re.match("^.*(School|Academie)", nom):
+        elif re.match(".*(School|Academy|Union)$", nom):
             nomcat="Alumnes de la "+nom
-        elif nom  in ["Bauhaus"]:
-            nomcat="Alumnes de la "+nom
-        elif nom  in ["Mozarteum"]:
+        elif re.match(".*(College|Institut|Conservator[iy]|Studio|Center|Gymnasium)", nom):
             nomcat="Alumnes del "+nom
-        elif nom  in ["Goldsmiths"]:
+        elif re.match(".*(School|[Aa][ck]ademie|Academy|[Ss]chule)", nom):
+            nomcat="Alumnes de la "+nom
+        elif nom  in ["Bauhaus", "Peterhouse", "Konstfack"]:
+            nomcat="Alumnes de la "+nom
+        elif nom  in ["Mozarteum", "Johanneum"]:
+            nomcat="Alumnes del "+nom
+        elif nom  in ["Goldsmiths", "Hogwarts"]:
             nomcat="Alumnes de "+nom
         else:
             print("NO PUC CONFEGIR EL NOM DE LA CATEGORIA:", nom)
@@ -208,6 +222,7 @@ def creacategories(quni, edita=True, site=pwb.Site('ca')):
         if article != "":
             nomel = nomcat.replace("Alumnes de l'","l'")
             nomel = nomel.replace("Alumnes de la","la")
+            nomel = nomel.replace("Alumnes de ","")
             nomel = nomel.replace("Alumnes d","")
             infocat="{{infocat|"+nom+"|"+nomel+"}}\n"
         else:
@@ -215,7 +230,8 @@ def creacategories(quni, edita=True, site=pwb.Site('ca')):
         ordena = re.sub("^Universitat","", nom)
         ordena = re.sub("^ ?(de |del |dels |d')","", ordena)
         ordena = re.sub("^ ?(el |la |l')","", ordena)
-        ordena = re.sub("^ ","", ordena)        
+        ordena = re.sub("^ ","", ordena) 
+        ordena = ordena.replace("É","E")
         text = infocat + "[[Categoria:Alumnes per centre educatiu|"+ordena+"]]\n"
         qcat = registre["cat"]["value"].replace("http://www.wikidata.org/entity/","")
         instruccio = qcat + '|Scawiki|"Categoria:'+nomcat+'"||'
@@ -275,7 +291,7 @@ print ("Informació: categories per crear")
 tunino = []
 qunino = []
 for uni in unino.keys():
-    if unino[uni]>5:
+    if unino[uni]>=5:
         print(uni, unino[uni])
         tunino.append((unino[uni],uni.replace("http://www.wikidata.org/entity/Q","")))
 tunino = sorted(tunino, reverse=True)
@@ -284,10 +300,14 @@ textunino = "Centres educatius que apareixen a {{P|69}} de persones amb article 
 textunino = textunino + "però sense categoria a la Viquipèdia, i nombre "
 textunino = textunino + "d'articles que hi anirien si existís.\n\n"
 textunino = textunino + "No tots són categories a crear.\n\n"
+totalunino = 0
 for tuni in tunino:
     textunino = textunino + "# {{Q|"+tuni[1]+"}}:"+str(tuni[0])+"\n"
     #print("* {{Q|"+tuni[1]+"}}", tuni[0]) 
     qunino.append("Q"+tuni[1])
+    totalunino = totalunino+tuni[0]
+print ("Total", totalunino)
+textunino = "\n"+textunino + "Total: "+str(totalunino)+"\n\n"
 if edita or creacat:
     pag = pwb.Page(pwb.Site('ca'), "Usuari:PereBot/centres educatius")
     pag.put(textunino, "Robot actualitza centres educatius sense categoria")
