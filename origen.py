@@ -220,7 +220,7 @@ for qgrup in qgrups:
         #print(articles)
         print(len(articles))
         posar=set(nascutsllocwd[qlloc])-set(articles)
-        print("Posar:", posar, len(posar)
+        print("Posar:", posar, len(posar))
         posacat(cat, posar)
         
 print(total)
