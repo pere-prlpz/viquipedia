@@ -21,7 +21,7 @@ def get_no(desa=True):
     query="""# categories de nascuts o relacionats amb estats, comunitats, etc.
     SELECT DISTINCT ?lloc ?cat ?categoria
     WHERE {
-        VALUES ?grans {wd:Q5107 wd:Q3624078 wd:Q10742 wd:Q35657 wd:Q15304003 wd:Q83057 wd:Q3336843}
+        VALUES ?grans {wd:Q5107 wd:Q3624078 wd:Q10742 wd:Q35657 wd:Q15304003 wd:Q83057 wd:Q3336843 wd:Q3024240}
         ?lloc wdt:P31 ?grans.
         ?lloc wdt:P1464|wdt:P1792 ?cat.
         ?categoria schema:about ?cat.
@@ -84,7 +84,27 @@ def get_nascutswd(qllocs):
     wd = results["results"]["bindings"]
     return (wd)
 
-def artcat(catnom, site=pwb.Site('ca'), profunditat=5):
+def get_redundantswd(qllocs):
+    print("Carregant categories redundants de Wikidata")
+    query="""# categories redundants per origen
+    SELECT DISTINCT ?lloc ?redundant ?llocLabel ?categoria
+    WHERE {
+      VALUES ?lloc {"""+" ".join(["wd:"+el for el in qllocs])+"""}
+      ?lloc wdt:P131+ ?redundant.
+        ?redundant wdt:P1464|wdt:P1792 ?cat.
+        ?categoria schema:about ?cat.
+        ?categoria schema:isPartOf <https://ca.wikipedia.org/>.
+    SERVICE wikibase:label {
+    bd:serviceParam wikibase:language "ca" .
+    }
+    }"""
+    #print(query)
+    endpoint_url = "https://query.wikidata.org/sparql"
+    results = get_results(endpoint_url, query)
+    wd = results["results"]["bindings"]
+    return (wd)
+
+def artcat(catnom, site=pwb.Site('ca'), profunditat=8):
     # llista d'articles d'una categoria
     cat = pwb.Category(site,catnom)
     articles = pagegenerators.CategorizedPageGenerator(cat, recurse=profunditat)
@@ -93,7 +113,7 @@ def artcat(catnom, site=pwb.Site('ca'), profunditat=5):
         llistart.append(art.title())
     return(llistart)
 
-def posacat(cat, arts, site=pwb.Site('ca')):
+def posacat(cat, catsno=[], arts=[], site=pwb.Site('ca')):
     #print(cat)
     for art in arts:
         print(art)
@@ -106,7 +126,7 @@ def posacat(cat, arts, site=pwb.Site('ca')):
         except pwb.NoPage:
             print("La pàgina no existeix")
             continue
-        if re.search("\[\["+cat+"\]\]", textvell):
+        if re.search("\[\["+cat+"(\|.*)?\]\]", textvell):
             print("La categoria ja hi és")
             continue
         if re.search("\]\]( *\n *)*$", textvell):
@@ -122,8 +142,18 @@ def posacat(cat, arts, site=pwb.Site('ca')):
             pagprova = pwb.Page(site, "Usuari:PereBot/taller")
             sumari = "Robot copia [["+art+"]] tot fent proves"
             pagprova.put(textnou, sumari)
+        sumtreu=""
         if textnou != textvell:
-            sumari = "Robot posa la [["+cat+"]] a partir de Wikidata"
+            for catno in catsno:
+                if catno == cat:
+                    print(catno, "redundant amb si mateixa")
+                    continue
+                if re.search("\[\["+catno+"(\|.*)?\]\]", textnou):
+                    print("Traient", catno)
+                    textnou=re.sub("\[\["+catno+"\]\]\n?", "", textnou)
+                    #textnou=re.sub("\[\["+catno+"\|.*\]\]", "", textnou)
+                    sumtreu=" i treu la [["+catno+"]] redundant"
+            sumari = "Robot posa la [["+cat+"]] a partir de Wikidata"+sumtreu
             try:
                 pag.put(textnou, sumari)
             except pwb.LockedPage:
@@ -173,14 +203,14 @@ nomirar = carrega_no()
 catwd = carrega_catwd(disc=disc)
 #print(catwd)
 qno = [x["lloc"]["value"].replace("http://www.wikidata.org/entity/","") for x in nomirar]
-#print (qno)
+print ("Llocs grans a ignorar:", qno)
 print(len(qno))
 qllocs = [x["lloc"]["value"].replace("http://www.wikidata.org/entity/","") for x in catwd]
 #print (qllocs)
 print(len(qllocs))
 qsi = list(set(qllocs)-set(qno))
-print(qsi)
-print(len(qsi))
+#print(qsi)
+print("Llocs a mirar:",len(qsi))
 dcats = {x["lloc"]["value"].replace("http://www.wikidata.org/entity/",""):\
 urllib.parse.unquote(x["categoria"]["value"].replace("https://ca.wikipedia.org/wiki/","")).replace("_"," ")\
 for x in catwd}
@@ -189,11 +219,13 @@ print(len(dcats))
 dcats = {x: dcats[x] for x in qsi}
 #print(dcats)
 print(len(dcats))
+ncats=len(dcats)
 midagrup = 25
 qgrups = [qsi[x:x+midagrup] for x in range(0,len(qsi), midagrup)]
-print(qgrups)
+#print(qgrups)
 print(len(qgrups))
 total=0
+icat=0
 for qgrup in qgrups:
     print(qgrup)
     nascutswd = get_nascutswd(qgrup) 
@@ -211,8 +243,9 @@ for qgrup in qgrups:
     #print(nascutsllocwd)
     print (len(nascutsllocwd), len(qgrup))
     for qlloc in qgrup:
+        icat=icat+1
         cat=dcats[qlloc]
-        print(cat)
+        print(icat,"/", ncats, cat, qlloc)
         if not(qlloc in nascutsllocwd):
             print("No cal buscar")
             continue
@@ -221,6 +254,14 @@ for qgrup in qgrups:
         print(len(articles))
         posar=set(nascutsllocwd[qlloc])-set(articles)
         print("Posar:", posar, len(posar))
-        posacat(cat, posar)
+        if len(posar)>0:
+            redundantswd = get_redundantswd([qlloc])
+            #print(redundantswd)
+            redundants = []
+            for red in redundantswd:
+                #print(red)
+                redundants.append(urllib.parse.unquote(red["categoria"]["value"].replace("https://ca.wikipedia.org/wiki/","")).replace("_"," "))
+            print(redundants)
+            posacat(cat, redundants, arts=posar)
         
 print(total)
