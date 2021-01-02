@@ -164,8 +164,9 @@ def posacat(cat, catsno=[], arts=[], site=pwb.Site('ca')):
 # el programa comença aquí
 notocar = ["Categoria:Grammy a l'àlbum de l'any", "Categoria:Pel·lícules guanyadores de l'Ós d'Or",
 "Categoria:BAFTA", "Categoria:Guanyadors del Globus d'Or al millor director",
-"Categoria:Guanyadors del Premi Booker"]
-notocarreg = ".*(premi Oscar|Pel·lícules|BAFTA|Goncourt|premi Goya)"
+"Categoria:Guanyadors del Premi Booker", "Categoria:Premis Ramon Llull de novel·la",
+"Categoria:Premis de traducció","Categoria:Figueres", "Categoria:Copa Intertoto de la UEFA"]
+notocarreg = "Categoria:(Jocs Olímpics|Festival|Foment|.*(premi Oscar|Pel·lícules|BAFTA|Goncourt|premi Goya))"
 diccpral, diccprem = dicccategories()
 #print(diccpral)
 #print(diccprem)
