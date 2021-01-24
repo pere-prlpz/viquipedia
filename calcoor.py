@@ -6,6 +6,7 @@ import requests
 import json
 import pywikibot as pwb
 import re
+import urllib
 
 def llegeix_petscan(url):
     print ("llegint petscan")
@@ -58,16 +59,18 @@ def treu_cal_coor(titol, site=pwb.Site('ca')):
             or plant("cal coor cat nord") in plantilles 
             or plant("cal coor val") in plantilles or plant("cal coor franja") in plantilles
             or plant("cal coor bal") in plantilles or plant("cal coor esp") in plantilles 
+            or plant("cal coor País Basc") in plantilles
             or plant("cal coor Irlanda") in plantilles or plant("cal coor França") in plantilles
+            or plant("cal coor Àsia") in plantilles or plant("cal coor Grècia") in plantilles
             or plant("cal coor Egipte") in plantilles or plant("cal coor Àfrica") in plantilles):
             text=pag.get()
-            textnou=re.sub(u"\{\{ ?[Cc]al coor( (cat( nord)?|val|bal|franja|França|Irlanda|Egipte|Àfrica))?(\|type=(mountain|river|waterbody|city|landmark|country|adm2nd|forest))?\}\}\n?","",text)
+            textnou=re.sub(u"\{\{ ?[Cc]al coord?( (cat( nord)?|val|bal|franja|esp|França|Irlanda|Egipte|À(fric|si)a|Grècia|País Basc))?(\|type=(mountain|river|waterbody|city|landmark|country|adm(1st|2nd)|forest|event|isle|pass|canal))?(\|region=..)?\}\}\n?","",text)
             if textnou != text:
                 sumari="robot treu plantilla cal coor redundant amb la infotaula"
                 textnou=poleix(textnou)
                 try:
                     pag.put(textnou,sumari)
-                except urllib2.HTTPError:
+                except urllib.HTTPError:
                     print ("Error HTTP en desar (no deu funcionar el web)")
                 except pwb.LockedPage:
                     print ("Pàgina protegida")
