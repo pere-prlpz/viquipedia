@@ -21,12 +21,13 @@ def get_no(desa=True):
     query="""# categories de nascuts o relacionats amb estats, comunitats, etc.
     SELECT DISTINCT ?lloc ?cat ?categoria
     WHERE {
-        VALUES ?grans {wd:Q5107 wd:Q3624078 wd:Q10742 wd:Q35657 wd:Q15304003 wd:Q83057 wd:Q3336843 wd:Q3024240}
+        VALUES ?grans {wd:Q5107 wd:Q3624078 wd:Q10742 wd:Q15304003 wd:Q3336843 wd:Q3024240}
         ?lloc wdt:P31 ?grans.
         ?lloc wdt:P1464|wdt:P1792 ?cat.
         ?categoria schema:about ?cat.
         ?categoria schema:isPartOf <https://ca.wikipedia.org/>.
     }"""
+    # wd:Q83057  wd:Q35657
     endpoint_url = "https://query.wikidata.org/sparql"
     results = get_results(endpoint_url, query)
     wd = results["results"]["bindings"]
