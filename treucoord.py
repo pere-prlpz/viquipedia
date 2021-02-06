@@ -1,4 +1,6 @@
 #-*- coding: utf-8 -*-
+# Treu la plantilla coord redundant amb la infotaula
+# després de comprovar que les coordenades són al mateix lloc.
 
 import math
 import pywikibot as pwb
@@ -8,7 +10,7 @@ def distancia(lat1, lat2, lon1, lon2):
     dlat = lat1-lat2
     if dlat>180:
         dlat=360-dlat
-    dlon = (lon1-lon2)*math.cos((lat1+lat2)/2)
+    dlon = (lon1-lon2)*math.cos((lat1+lat2)/2*math.pi/180)
     return 6371*math.sqrt(dlat**2+dlon**2)*math.pi/180
 
 def coordwd(pag, repo = pwb.Site('ca').data_repository()):
@@ -90,7 +92,7 @@ for article in articles:
                     hihainfotaula = True
                     print(plantilla.name)
     if hihainfotaula and pcoord and 'display=title' in pcoord:
-        print("coordenades a comprovar i eliminar")
+        #print("coordenades a comprovar i eliminar")
         lat,lon = coorpar(pcoord)
         print (lat, lon)
         latwd, lonwd = coordwd(article)
@@ -98,7 +100,7 @@ for article in articles:
         d = distancia(latwd, lat, lonwd, lon)
         print (d, "km")
         if d<0.025 and ncoord==1:
-            print("Es pot treure")
+            #print("Es pot treure")
             for plantilla in plantilles:
                 if plantilla.name.matches("coord"):
                     code.remove(plantilla)
@@ -106,7 +108,7 @@ for article in articles:
                     if textnou != text:
                         textnou = textnou.replace("\n\n\n\n","\n\n")
                         textnou = textnou.replace("\n\n\n","\n\n")
-                        print ("Ha canviat. Desar.")
+                        #print ("Ha canviat. Desar.")
                         sumari = "Robot elimina plantilla coord redundant amb coordenades a "+str(d)+" km de les de Wikidata"
                         print(sumari)
                         article.put(textnou, sumari)
@@ -114,3 +116,5 @@ for article in articles:
                         print ("Segueix igual")
         else:
             print("Massa lluny")
+    else:
+        print("Coordenades no trobades")
