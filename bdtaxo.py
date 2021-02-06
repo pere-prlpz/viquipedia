@@ -1,6 +1,6 @@
 #-*- coding: utf-8 -*-
 
-# programa per posar la plantilla autoritat
+# programa per posar la plantilla bases de dades taxonòmiques
 import requests
 import json
 import pywikibot as pwb
@@ -29,8 +29,17 @@ def insertaut(page,afegit="{{Autoritat}}"):
         page=page.getRedirectTarget()
     text=page.get()
     if re.search(u"\{\{ ?[Bb]ases de dades taxonòmiques",text):
-        text=re.sub(u"\{\{ ?[Bb]ases de dades taxonòmiques",afegit+u"\n{{Bases de dades taxonòmiques",text)
-        print (afegit,u"afegit davant de la plantilla Bases de dades taxonòmiques")
+        if afegit=="{{Bases de dades taxonòmiques}}":
+            print ("BDT ja hi és")
+        else:
+            text=re.sub(u"\{\{ ?[Bb]ases de dades taxonòmiques",afegit+u"\n{{Bases de dades taxonòmiques",text)
+            print (afegit,u"afegit davant de la plantilla Bases de dades taxonòmiques")
+    if re.search(u"\{\{ ?[Aa]utoritat",text):
+        if afegit=="{{Autortat}}":
+            print ("Autortat ja hi és")
+        else:
+            text=re.sub(u"\{\{ ?[Aa]utoritat",afegit+u"\n{{Autoritat",text)
+            print (afegit,u"afegit davant de la plantilla Autoritat")
 #    elif re.search(u"\{\{[Ee]sborrany",text):
 #        text=re.sub(u"\{\{[Ee]sborrany",afegit+u"\n{{Esborrany",text,count=1)
 #        print (afegit,u"afegit davant de la plantilla esborrany")
@@ -57,8 +66,8 @@ def insertaut(page,afegit="{{Autoritat}}"):
 # PER FER: FER QUE POSI BÉ LES PLANTILLES QUE HAGIN QUEDAT ABANS D'ENLLAÇOS EXTERNS
 def poleix(text):
     for i in range(1,10):
-        text=text.replace("\}\}\n\n{{Autoritat}}",u"\}\}\n{{Autoritat}}")
         text=text.replace("\n\n\n{{Autoritat}}",u"\n\n{{Autoritat}}")
+        text=text.replace("{{Bases de dades taxonòmiques}}\n{{Autoritat}}","{{Autoritat}}\n{{Bases de dades taxonòmiques}}")
         text=text.replace("\n\n\n{{Bases de dades taxonòmiques}}","\n\n{{Bases de dades taxonòmiques}}")
         text=text.replace("\n\n{{Commonscat",u"\n{{Commonscat")
         text=text.replace("\n\n{{Projectes germans",u"\n{{Projectes germans")
@@ -87,12 +96,12 @@ def posaplantilles(titol, site=pwb.Site('ca')):
     plantilles=pag.templates()
     sumari=u""
     germans=False
-    # Comença la part de posar plantilla Autoritat
-    if pag.namespace()!=14 and ((not plant(u'Autoritat') in plantilles) and (not plant(u"Registre d'autoritats") in plantilles) and (not plant(u"Authority control") in plantilles)):
-        textnou=insertaut(pag,"{{Autoritat}}")
-        sumari = "Robot posa la plantilla autoritat"
+    # Comença la part de posar plantilla BDT
+    if pag.namespace()!=14 and ((not plant(u'Bases de dades taxonòmiques') in plantilles) and (not plant(u"Registre d'autoritats") in plantilles) and (not plant(u"Authority control") in plantilles)):
+        textnou=insertaut(pag,"{{Bases de dades taxonòmiques}}")
+        sumari = "Robot posa la plantilla Bases de dades taxonòmiques"
     else:
-        #print u"O ja hi ha la plantilla Autoritat o no hi ha cap autoritat a Wikidata"
+        #print u"O ja hi ha la plantilla BDT o no hi ha cap BDT a Wikidata"
         textnou=textvell
       # Tot incorporat. Poleix i desa.
     if textnou!=textvell:
@@ -108,10 +117,9 @@ def posaplantilles(titol, site=pwb.Site('ca')):
     return()
 
 #el programa comença aquí
-depth = 15 # depth baix per proves
-url1 = "https://petscan.wmflabs.org/?links_to_all=&project=wikipedia&templates_no=Autoritat&edits%5Banons%5D=both&cb_labels_no_l=1&edits%5Bbots%5D=both&search_max_results=500&ns%5B0%5D=1&cb_labels_yes_l=1&categories=Principal&interface_language=en&larger=70&active_tab=tab_pageprops&language=ca&depth="
-url2 = "&cb_labels_any_l=1&edits%5Bflagged%5D=both&wikidata_prop_item_use=P1296,P5513,P6412,P902,P886,P7872,P7357,P2498&format=json&langs_labels_any=&doit="
-# Europeana ,P7704 no inclòs perquè hi ha registres buits
+depth = 20 # depth baix per proves
+url1 = "https://petscan.wmflabs.org/?search_query=&ns%5B0%5D=1&active_tab=tab_wikidata&edits%5Bbots%5D=both&edits%5Bflagged%5D=both&depth="
+url2 = "&categories=Arbre%20de%20la%20vida&cb_labels_no_l=1&wikidata_prop_item_use=P1348,P4024,P7905,P2036,P3594,P2026,P5036,P3606,P838,P6070,P687,P1939,P3444,P830,P1895,P938,P5179,P1747,P846,P6433,P1421,P3099,P1076,P1391,P3151,P961,P815,P627,P959,P962,P685,P6754,P842,P1070,P1772,P2040,P7066,P960,P4728,P1772,P1745,P4664,P850,P3288,P2426,P1746&edits%5Banons%5D=both&search_max_results=500&project=wikipedia&templates_no=Bases%20de%20dades%20taxon%C3%B2miques&interface_language=en&language=ca&cb_labels_any_l=1&cb_labels_yes_l=1&negcats=&format=json&langs_labels_any=&doit="
 url=url1+str(depth)+url2
 titols = llegeix_petscan(url)
 print(titols[0:min(10,len(titols))])

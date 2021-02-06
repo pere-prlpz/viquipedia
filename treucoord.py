@@ -31,26 +31,26 @@ def esnum(x):
 
 def coorpar(par):
     nums = [float(str(x)) for x in par if esnum(x)]
-    if len(par)>3 and par[1] in ["N", "S"] and par[3] in ["E","W"] and len(nums)==2:
+    if len(par)>3 and par[1] in ["N", "S"] and par[3] in ["E","W","O"] and len(nums)==2:
         lat = nums[0]
         lon = nums[1]
         if par[1] == "S":
             lat= -lat
-        if par[3] == "W":
+        if par[3] in ["W","O"]:
             lon= -lon
-    elif len(par)>5 and par[2] in ["N", "S"] and par[5] in ["E","W"] and len(nums)==4:
+    elif len(par)>5 and par[2] in ["N", "S"] and par[5] in ["E","W","O"] and len(nums)==4:
         lat = nums[0]+nums[1]/60
         lon = nums[2]+nums[3]/60
         if par[2] == "S":
             lat= -lat
-        if par[5] == "W":
+        if par[5] in ["W","O"]:
             lon= -lon
-    elif len(par)>7 and par[3] in ["N", "S"] and par[7] in ["E","W"] and len(nums)==6:
+    elif len(par)>7 and par[3] in ["N", "S"] and par[7] in ["E","W","O"] and len(nums)==6:
         lat = nums[0]+nums[1]/60+nums[2]/3600
         lon = nums[3]+nums[4]/60+nums[5]/3600
         if par[3] == "S":
             lat= -lat
-        if par[7] == "W":
+        if par[7] in ["W","O"]:
             lon= -lon
     elif len(nums)==2:
         lat = nums[0]
@@ -76,6 +76,7 @@ for article in articles:
     plantilles=code.filter_templates();
     #print(plantilles)
     hihainfotaula=False
+    present = ""
     pcoord =False
     ncoord=0
     for plantilla in plantilles:
@@ -90,8 +91,11 @@ for article in articles:
             for infotaula in infotaules:
                 if plantilla.name.matches(infotaula):
                     hihainfotaula = True
+                    present = infotaula
                     print(plantilla.name)
-    if hihainfotaula and pcoord and 'display=title' in pcoord:
+    treure=False
+    sumariextra=""
+    if hihainfotaula and pcoord and 'display=title' in pcoord and ncoord==1:
         #print("coordenades a comprovar i eliminar")
         lat,lon = coorpar(pcoord)
         print (lat, lon)
@@ -101,20 +105,27 @@ for article in articles:
         print (d, "km")
         if d<0.025 and ncoord==1:
             #print("Es pot treure")
-            for plantilla in plantilles:
-                if plantilla.name.matches("coord"):
-                    code.remove(plantilla)
-                    textnou=str(code)
-                    if textnou != text:
-                        textnou = textnou.replace("\n\n\n\n","\n\n")
-                        textnou = textnou.replace("\n\n\n","\n\n")
-                        #print ("Ha canviat. Desar.")
-                        sumari = "Robot elimina plantilla coord redundant amb coordenades a "+str(d)+" km de les de Wikidata"
-                        print(sumari)
-                        article.put(textnou, sumari)
-                    else:
-                        print ("Segueix igual")
+            treure=True
+        elif present in ["infotaula geografia política", "IGP"] and d<0.4:
+            treure=True
+            sumariextra=", suficient per articles amb infotaula geografia política"
         else:
             print("Massa lluny")
     else:
         print("Coordenades no trobades")
+    if treure:
+        for plantilla in plantilles:
+            if plantilla.name.matches("coord"):
+                code.remove(plantilla)
+        textnou=str(code)
+        if textnou != text:
+            textnou = textnou.replace("\n\n\n\n","\n\n")
+            textnou = textnou.replace("\n\n\n","\n\n")
+            #print ("Ha canviat. Desar.")
+            sumari = "Robot elimina plantilla coord redundant amb coordenades a "+str(d)+" km de les de Wikidata"
+            sumari = sumari+sumariextra
+            print(sumari)
+            article.put(textnou, sumari)
+        else:
+            print ("Segueix igual")
+

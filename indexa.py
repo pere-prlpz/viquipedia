@@ -56,9 +56,10 @@ for pag in pags:
     else:
         ordena = tit
     index=tit
+    print(index)
     #index=re.sub("^("+tcats+") (del |de la |de l'|dels |de les )","",index)
     #index=re.sub("^("+tcats+") (de |d')","",index)
-    index=re.sub("^("+tcats+") ","",index)
+    index=re.sub("^("+tcats+") ?","",index)
     index=re.sub("^(del |de la |de l'|dels |de les |d'en |de na |al |a la |als |a les |a l')","", index)
     index=re.sub("^(de |d'|a )","", index)    
     index=re.sub("^(el |la |l'|els |les )","", index)
@@ -69,8 +70,11 @@ for pag in pags:
     if index != tit and index0 != tit and index != ordena and index0 != ordena and not ordena.startswith(index) and len(index)>0:
         #index=index[0].upper()+index[1:]
         print (index)
-        noutext=re.sub("\[\[ ?[Cc]ategoria: ?"+retcat+u" ?\]\]", "[[Categoria:"+tcat+u"|"+index+u"]]",textvell)
+        noutext=re.sub("\[\[ ?[Cc]ategoria: ?"+retcat+u" ?(\|\{\{PAGENAME\}\})?\]\]", "[[Categoria:"+tcat+u"|"+index+u"]]",textvell)
         #print ("\[\[ ?[Cc]ategoria: ?"+retcat+u" ?\]\]")
         print ("[[Categoria:"+tcat+u"|"+index+u"]]")
         if noutext != textvell:
-            pag.put(noutext,u"Robot indexant l'article a la [[Categoria:"+tcat+u"]] amb l'índex '"+index+u"'")
+            try:
+                pag.put(noutext,u"Robot indexant l'article a la [[Categoria:"+tcat+u"]] amb l'índex '"+index+u"'")
+            except pwb.LockedPage:
+                print("pàgina blocada. S'hauria d'editar però no s'edita.")
