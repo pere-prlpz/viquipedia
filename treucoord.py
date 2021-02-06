@@ -17,10 +17,23 @@ def coordwd(pag, repo = pwb.Site('ca').data_repository()):
     item = pwb.ItemPage.fromPage(pag)
     item_dict = item.get()
     clm_dict = item_dict["claims"]
-    coords = clm_dict["P625"][0].toJSON()["mainsnak"]["datavalue"]["value"]
-    lat = coords["latitude"]
-    lon = coords["longitude"]
-    return lat,lon
+    if "P625" in clm_dict:
+        coords = clm_dict["P625"][0].toJSON()["mainsnak"]["datavalue"]["value"]
+        lat = coords["latitude"]
+        lon = coords["longitude"]
+    else:
+        lat=False
+        lon=False
+    claims ={}
+    if "P2046" in clm_dict:
+        supcl = clm_dict["P2046"][0].toJSON()["mainsnak"]["datavalue"]["value"]
+        if supcl["unit"]== 'http://www.wikidata.org/entity/Q712226': #km2
+            claims["sup"] = float(supcl["amount"])
+    if "P2049" in clm_dict:
+        supcl = clm_dict["P2049"][0].toJSON()["mainsnak"]["datavalue"]["value"]
+        if supcl["unit"]== 'http://www.wikidata.org/entity/Q828224': #km
+            claims["ample"] = float(supcl["amount"])
+    return lat,lon,claims
 
 def esnum(x):
     try:
@@ -66,7 +79,9 @@ site=pwb.Site('ca')
 repo = site.data_repository()
 articles = site.search("no hi pot haver més d'una etiqueta primària per pàgina")
 print (articles)
-infotaules = ["indret", "infotaula geografia política", "IGP"]
+infoIGP = ["infotaula geografia política", "IGP", "infotaula de bisbat"]
+infoindret =["indret"]
+infotaules = infoIGP+infoindret+["infotaula de vial urbà", "infotaula edifici", "edifici"]
 i=0
 for article in articles:
     i=i+1
@@ -99,20 +114,29 @@ for article in articles:
         #print("coordenades a comprovar i eliminar")
         lat,lon = coorpar(pcoord)
         print (lat, lon)
-        latwd, lonwd = coordwd(article)
-        print (latwd, lonwd)
+        latwd, lonwd, altreswd = coordwd(article)
+        print (latwd, lonwd, altreswd)
+        if lat is False or latwd is False:
+            print("Coordenades no trobades")
+            continue
         d = distancia(latwd, lat, lonwd, lon)
         print (d, "km")
         if d<0.025 and ncoord==1:
             #print("Es pot treure")
             treure=True
-        elif present in ["infotaula geografia política", "IGP"] and d<0.4:
+        elif present in infoIGP and d<0.4:
             treure=True
             sumariextra=", suficient per articles amb infotaula geografia política"
+        elif "ample" in altreswd and d<0.2*altreswd["ample"]:
+            treure=True
+            sumariextra=", suficient per elements de "+str(altreswd["ample"])+" km d'amplada"        
+        elif "sup" in altreswd and d<0.3*math.sqrt(altreswd["sup"]/5):
+            treure=True
+            sumariextra=", suficient per elements de "+str(altreswd["sup"])+" km2 de superfície"        
         else:
             print("Massa lluny")
     else:
-        print("Coordenades no trobades")
+        print("Coordenades no trobades o no hi ha infotaula")
     if treure:
         for plantilla in plantilles:
             if plantilla.name.matches("coord"):
