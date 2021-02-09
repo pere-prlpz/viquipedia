@@ -1,7 +1,8 @@
 #-*- coding: utf-8 -*-
 
 
-# programa per posar la plantilla autoritat
+# Programa per treure la plantilla cal coor
+# si hi ha una infotaula que fa el mateix.
 import requests
 import json
 import pywikibot as pwb

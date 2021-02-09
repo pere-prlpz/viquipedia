@@ -47,6 +47,17 @@ def coordwd(pag, repo = pwb.Site('ca').data_repository()):
                     claims["llarg"] = float(supcl["amount"])
         except KeyError:
             print("Llargada sense valor a Wikidata")
+        try:
+            if "P1082" in clm_dict:
+                popcl = clm_dict["P1082"][0].toJSON()["mainsnak"]["datavalue"]["value"]["amount"]
+                claims["pop"] = float(popcl)
+        except KeyError:
+            print("No puc recuperar la població de Wikidata")
+        try:
+            if "P31" in clm_dict:
+                claims["inst"] = [x.toJSON()["mainsnak"]["datavalue"]["value"]["numeric-id"] for x in clm_dict["P31"]]
+        except KeyError:
+            print("No puc recuperar la instància de Wikidata")
         return lat,lon,claims
     except pwb.NoUsername:
         print("Error .NoUsername")
@@ -92,6 +103,10 @@ def coorpar(par):
         print (nums)
     return (lat, lon)
 
+def tipuslim():
+    tipus = {515:(.8, "una ciutat"), 184188:(1, "un cantó francès"), 18524218:(1, "un cantó francès")}
+    return(tipus)
+
 def posainforme(llista, final=False, paginfo=pwb.Page(pwb.Site('ca'),"Usuari:PereBot/coordenades duplicades")):
     text = "Pàgines a les que el bot no ha pogut comprovar que les coordenades en local "
     text = text+"són a la pràctica les mateixes que les de Wikidata.\n\n"
@@ -111,18 +126,25 @@ site=pwb.Site('ca')
 repo = site.data_repository()
 articles = site.search("no hi pot haver més d'una etiqueta primària per pàgina")
 print (articles)
-infoIGP = ["infotaula geografia política", "IGP", "infotaula de bisbat", "Infotaula de geografia política"]
+infoIGP = ["infotaula geografia política", "IGP", "infotaula de bisbat", "Infotaula de geografia política", "Infotaula d'entitat de població"]
 infoindret =["indret"]
 infotaules = infoIGP+infoindret+["infotaula de vial urbà", "infotaula edifici", "edifici", "infotaula d'obra artística"]
+calcoors = ["cal coor", "cal coor esp", "cal coor cat"]
 i=0
 it=0
 ino=0
 informetot = []
+vistos = []
+tipus = tipuslim()
 for article in articles:
     d=False
     altreswd=" "
     i=i+1
     print(i, article)
+    if article in vistos:
+        print ("ja vist")
+        continue
+    vistos.append(article)
     informe = "# [["+article.title()+"]]: "
     text=article.get()
     code = hell.parse(text)
@@ -132,14 +154,32 @@ for article in articles:
     present = ""
     pcoord =[]
     ncoord=0
+    jatret=False
     for plantilla in plantilles:
         #print (plantilla.name)
         if plantilla.name.matches("coord"):
             print (plantilla.params)
-            pcoord = plantilla.params
-            ncoord = ncoord+1
-            if (ncoord>1):
-                print (ncoord, "PLANTILLES COORD")
+            if plantilla.has("display") and "inline" in plantilla.get("display") and "title" in plantilla.get("display"):
+                plantilla.add("display", "inline")
+                textnou=str(code)
+                if textnou != text:
+                    textnou = textnou.replace("\n\n\n\n","\n\n")
+                    textnou = textnou.replace("\n\n\n","\n\n")
+                    #print ("Ha canviat. Desar.")
+                    sumari = "Robot elimina display=title redundant de plantilla coord"
+                    it = it+1
+                    print(it, sumari)
+                    article.put(textnou, sumari)
+                    jatret=True
+                else:
+                    print ("Segueix igual")
+                    treure = False
+                    informe = informe +" No s'ha pogut treure title"
+            else:
+                pcoord = plantilla.params
+                ncoord = ncoord+1
+                if (ncoord>1):
+                    print (ncoord, "PLANTILLES COORD")
         else:
             for infotaula in infotaules:
                 if plantilla.name.matches(infotaula):
@@ -147,6 +187,25 @@ for article in articles:
                     present = infotaula
                     print(plantilla.name)
                     informe = informe+infotaula+"; "
+            for calcoor in calcoors:
+                if plantilla.name.matches(calcoor):
+                    code.remove(plantilla)
+                    textnou=str(code)
+                    if textnou != text:
+                        textnou = textnou.replace("\n\n\n\n","\n\n")
+                        textnou = textnou.replace("\n\n\n","\n\n")
+                        #print ("Ha canviat. Desar.")
+                        sumari = "Robot elimina plantilla "+calcoor+" redundant"
+                        it = it+1
+                        print(it, sumari)
+                        article.put(textnou, sumari)
+                        jatret=True
+                    else:
+                        print ("Segueix igual")
+                        treure = False
+                        informe = informe +" No s'ha pogut treure "+calcoor+". "
+    if jatret:
+        continue
     treure=False
     sumariextra=""
     if hihainfotaula and pcoord and 'display=title' in pcoord and ncoord==1:
@@ -175,6 +234,13 @@ for article in articles:
         elif "sup" in altreswd and d<0.3*math.sqrt(altreswd["sup"]/5):
             treure=True
             sumariextra=", suficient per elements de "+str(altreswd["sup"])+" km2 de superfície"        
+        elif "pop" in altreswd and d<0.3*math.sqrt(altreswd["pop"]/8000/5):
+            treure=True
+            sumariextra=", suficient per elements de "+str(altreswd["pop"])+" habitants"
+        elif "inst" in altreswd and any([tipus[x][0]>d for x in altreswd["inst"] if x in tipus]):
+            tipusi = ", ".join([tipus[x][1] for x in altreswd["inst"] if x in tipus and tipus[x][0]>d])
+            treure = True
+            sumariextra=", suficient per "+tipusi
         else:
             print("Massa lluny")
     else:
