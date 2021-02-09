@@ -14,26 +14,43 @@ def distancia(lat1, lat2, lon1, lon2):
     return 6371*math.sqrt(dlat**2+dlon**2)*math.pi/180
 
 def coordwd(pag, repo = pwb.Site('ca').data_repository()):
-    item = pwb.ItemPage.fromPage(pag)
-    item_dict = item.get()
-    clm_dict = item_dict["claims"]
-    if "P625" in clm_dict:
-        coords = clm_dict["P625"][0].toJSON()["mainsnak"]["datavalue"]["value"]
-        lat = coords["latitude"]
-        lon = coords["longitude"]
-    else:
-        lat=False
-        lon=False
-    claims ={}
-    if "P2046" in clm_dict:
-        supcl = clm_dict["P2046"][0].toJSON()["mainsnak"]["datavalue"]["value"]
-        if supcl["unit"]== 'http://www.wikidata.org/entity/Q712226': #km2
-            claims["sup"] = float(supcl["amount"])
-    if "P2049" in clm_dict:
-        supcl = clm_dict["P2049"][0].toJSON()["mainsnak"]["datavalue"]["value"]
-        if supcl["unit"]== 'http://www.wikidata.org/entity/Q828224': #km
-            claims["ample"] = float(supcl["amount"])
-    return lat,lon,claims
+    try:
+        item = pwb.ItemPage.fromPage(pag)
+        item_dict = item.get()
+        clm_dict = item_dict["claims"]
+        if "P625" in clm_dict:
+            coords = clm_dict["P625"][0].toJSON()["mainsnak"]["datavalue"]["value"]
+            lat = coords["latitude"]
+            lon = coords["longitude"]
+        else:
+            lat=False
+            lon=False
+        claims ={}
+        try:
+            if "P2046" in clm_dict:
+                supcl = clm_dict["P2046"][0].toJSON()["mainsnak"]["datavalue"]["value"]
+                if supcl["unit"]== 'http://www.wikidata.org/entity/Q712226': #km2
+                    claims["sup"] = float(supcl["amount"])
+        except KeyError:
+            print("Superfície sense valor a Wikidata")
+        try:
+            if "P2049" in clm_dict:
+                supcl = clm_dict["P2049"][0].toJSON()["mainsnak"]["datavalue"]["value"]
+                if supcl["unit"]== 'http://www.wikidata.org/entity/Q828224': #km
+                    claims["ample"] = float(supcl["amount"])
+        except KeyError:
+            print("Amplada sense valor a Wikidata")
+        try:
+            if "P2043" in clm_dict:
+                supcl = clm_dict["P2043"][0].toJSON()["mainsnak"]["datavalue"]["value"]
+                if supcl["unit"]== 'http://www.wikidata.org/entity/Q828224': #km
+                    claims["llarg"] = float(supcl["amount"])
+        except KeyError:
+            print("Llargada sense valor a Wikidata")
+        return lat,lon,claims
+    except pwb.NoUsername:
+        print("Error .NoUsername")
+        return False, False, False
 
 def esnum(x):
     try:
@@ -75,24 +92,45 @@ def coorpar(par):
         print (nums)
     return (lat, lon)
 
+def posainforme(llista, final=False, paginfo=pwb.Page(pwb.Site('ca'),"Usuari:PereBot/coordenades duplicades")):
+    text = "Pàgines a les que el bot no ha pogut comprovar que les coordenades en local "
+    text = text+"són a la pràctica les mateixes que les de Wikidata.\n\n"
+    llista.sort()
+    text = text+"\n".join(llista)
+    text = text+"\n\n[[Especial:Cerca/\"no hi pot haver més d'una etiqueta primària per pàgina\"]]\n\n"
+    if final:
+        acabat="Llista finalitzada."
+    else:
+        acabat="Llista en curs."
+    text = text+""+acabat+"--~~~~"
+    paginfo.put(text, "Informe articles amb coordenades duplicades")
+    #print(text)
+    return
+
 site=pwb.Site('ca')
 repo = site.data_repository()
 articles = site.search("no hi pot haver més d'una etiqueta primària per pàgina")
 print (articles)
-infoIGP = ["infotaula geografia política", "IGP", "infotaula de bisbat"]
+infoIGP = ["infotaula geografia política", "IGP", "infotaula de bisbat", "Infotaula de geografia política"]
 infoindret =["indret"]
-infotaules = infoIGP+infoindret+["infotaula de vial urbà", "infotaula edifici", "edifici"]
+infotaules = infoIGP+infoindret+["infotaula de vial urbà", "infotaula edifici", "edifici", "infotaula d'obra artística"]
 i=0
+it=0
+ino=0
+informetot = []
 for article in articles:
+    d=False
+    altreswd=" "
     i=i+1
     print(i, article)
+    informe = "# [["+article.title()+"]]: "
     text=article.get()
     code = hell.parse(text)
     plantilles=code.filter_templates();
     #print(plantilles)
     hihainfotaula=False
     present = ""
-    pcoord =False
+    pcoord =[]
     ncoord=0
     for plantilla in plantilles:
         #print (plantilla.name)
@@ -108,6 +146,7 @@ for article in articles:
                     hihainfotaula = True
                     present = infotaula
                     print(plantilla.name)
+                    informe = informe+infotaula+"; "
     treure=False
     sumariextra=""
     if hihainfotaula and pcoord and 'display=title' in pcoord and ncoord==1:
@@ -127,15 +166,22 @@ for article in articles:
         elif present in infoIGP and d<0.4:
             treure=True
             sumariextra=", suficient per articles amb infotaula geografia política"
-        elif "ample" in altreswd and d<0.2*altreswd["ample"]:
+        elif "ample" in altreswd and d<0.25*altreswd["ample"]:
             treure=True
-            sumariextra=", suficient per elements de "+str(altreswd["ample"])+" km d'amplada"        
+            sumariextra=", suficient per un element de "+str(altreswd["ample"])+" km d'amplada"        
+        elif "llarg" in altreswd and d<0.15*altreswd["llarg"]:
+            treure=True
+            sumariextra=", suficient per un element de "+str(altreswd["llarg"])+" km de llargada"        
         elif "sup" in altreswd and d<0.3*math.sqrt(altreswd["sup"]/5):
             treure=True
             sumariextra=", suficient per elements de "+str(altreswd["sup"])+" km2 de superfície"        
         else:
             print("Massa lluny")
     else:
+        if "display=inline,title" in pcoord or "display= inline,title" in pcoord:
+            altreswd=altreswd+"display=inline,title "
+        if ncoord != 1:
+            altreswd=altreswd+str(ncoord)+" coordenades"
         print("Coordenades no trobades o no hi ha infotaula")
     if treure:
         for plantilla in plantilles:
@@ -148,8 +194,18 @@ for article in articles:
             #print ("Ha canviat. Desar.")
             sumari = "Robot elimina plantilla coord redundant amb coordenades a "+str(d)+" km de les de Wikidata"
             sumari = sumari+sumariextra
-            print(sumari)
+            it = it+1
+            print(it, sumari)
             article.put(textnou, sumari)
         else:
             print ("Segueix igual")
+            treure = False
+            informe = informe +" No s'ha pogut trure coord. "
+    if not treure:
+        informe = informe+str(d)+" km "+str(altreswd)
+        informetot.append(informe)
+        ino = ino+1
+        if ino==40 or ino % 200 == 0:
+            posainforme(informetot)
+posainforme(informetot, final=True)
 
