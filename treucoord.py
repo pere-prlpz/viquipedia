@@ -104,7 +104,8 @@ def coorpar(par):
     return (lat, lon)
 
 def tipuslim():
-    tipus = {515:(.8, "una ciutat"), 184188:(1, "un cantó francès"), 18524218:(1, "un cantó francès")}
+    tipus = {515:(.8, "una ciutat"), 184188:(1, "un cantó francès"), 18524218:(1, "un cantó francès"), 
+             1402592:(1.5, "un grup d'illes"), 33837:(3, "un arxipèlag")}
     return(tipus)
 
 def posainforme(llista, final=False, paginfo=pwb.Page(pwb.Site('ca'),"Usuari:PereBot/coordenades duplicades")):
@@ -127,7 +128,7 @@ repo = site.data_repository()
 articles = site.search("no hi pot haver més d'una etiqueta primària per pàgina")
 print (articles)
 infoIGP = ["infotaula geografia política", "IGP", "infotaula de bisbat", "Infotaula de geografia política", "Infotaula d'entitat de població"]
-infoindret =["indret"]
+infoindret =["indret", "infotaula muntanya"]
 infotaules = infoIGP+infoindret+["infotaula de vial urbà", "infotaula edifici", "edifici", "infotaula d'obra artística"]
 calcoors = ["cal coor", "cal coor esp", "cal coor cat"]
 i=0
@@ -175,11 +176,15 @@ for article in articles:
                     print ("Segueix igual")
                     treure = False
                     informe = informe +" No s'ha pogut treure title"
-            else:
+            elif plantilla.has("display") and "title" in plantilla.get("display"):
                 pcoord = plantilla.params
+                ptrobada = plantilla
                 ncoord = ncoord+1
                 if (ncoord>1):
                     print (ncoord, "PLANTILLES COORD")
+            else:
+                print("Plantilla coord sense title", str(plantilla))
+                print(plantilla.has("display"))
         else:
             for infotaula in infotaules:
                 if plantilla.name.matches(infotaula):
@@ -208,7 +213,7 @@ for article in articles:
         continue
     treure=False
     sumariextra=""
-    if hihainfotaula and pcoord and 'display=title' in pcoord and ncoord==1:
+    if hihainfotaula and pcoord and ncoord==1: # and ptrobada.has("display") and ptrobada.get("display").strip()=="title" 
         #print("coordenades a comprovar i eliminar")
         lat,lon = coorpar(pcoord)
         print (lat, lon)
@@ -231,16 +236,19 @@ for article in articles:
         elif "llarg" in altreswd and d<0.15*altreswd["llarg"]:
             treure=True
             sumariextra=", suficient per un element de "+str(altreswd["llarg"])+" km de llargada"        
-        elif "sup" in altreswd and d<0.3*math.sqrt(altreswd["sup"]/5):
+        elif "sup" in altreswd and d<0.3*math.sqrt(altreswd["sup"]/4):
             treure=True
             sumariextra=", suficient per elements de "+str(altreswd["sup"])+" km2 de superfície"        
-        elif "pop" in altreswd and d<0.3*math.sqrt(altreswd["pop"]/8000/5):
+        elif "pop" in altreswd and d<0.3*math.sqrt(altreswd["pop"]/8000/4):
             treure=True
             sumariextra=", suficient per elements de "+str(altreswd["pop"])+" habitants"
         elif "inst" in altreswd and any([tipus[x][0]>d for x in altreswd["inst"] if x in tipus]):
             tipusi = ", ".join([tipus[x][1] for x in altreswd["inst"] if x in tipus and tipus[x][0]>d])
             treure = True
             sumariextra=", suficient per "+tipusi
+        elif "inst" in altreswd and 23442 in altreswd["inst"] and "pop" in altreswd and altreswd["pop"]>50 and d<1:
+            treure = True
+            sumariextra=", suficient per illa habitada"       
         else:
             print("Massa lluny")
     else:
@@ -251,7 +259,7 @@ for article in articles:
         print("Coordenades no trobades o no hi ha infotaula")
     if treure:
         for plantilla in plantilles:
-            if plantilla.name.matches("coord"):
+            if plantilla.name.matches("coord") and plantilla.has("display") and "title" in plantilla.get("display"):
                 code.remove(plantilla)
         textnou=str(code)
         if textnou != text:
