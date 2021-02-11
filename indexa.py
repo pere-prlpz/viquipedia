@@ -37,6 +37,7 @@ site=pwb.Site('ca')
 #tcats=u"Plaça" #Poseu aquí la part del títol que no forma part de l'índex (no hi inclogueu "de", "del" i variants, que ja ho fa el programa tot sol).
 arguments = sys.argv[1:]
 cats=False
+ignoraordena=False
 if len(arguments)>0:
     if "-cats" in arguments:
         cats=True

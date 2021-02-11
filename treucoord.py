@@ -5,6 +5,7 @@
 import math
 import pywikibot as pwb
 import mwparserfromhell as hell
+from collections import Counter
 
 def distancia(lat1, lat2, lon1, lon2):
     dlat = lat1-lat2
@@ -104,15 +105,27 @@ def coorpar(par):
     return (lat, lon)
 
 def tipuslim():
-    tipus = {515:(.8, "una ciutat"), 184188:(1, "un cantó francès"), 18524218:(1, "un cantó francès"), 
-             1402592:(1.5, "un grup d'illes"), 33837:(3, "un arxipèlag")}
+    tipus = {515:(.8, "una ciutat"), 1549591:(1.5, "una gran ciutat"), 123705:(.5, "un barri"),  
+             184188:(1, "un cantó francès"), 18524218:(1, "un cantó francès"), 
+             1402592:(1.5, "un grup d'illes"), 33837:(3, "un arxipèlag"),
+             612741:(3, "un bosc nacional"), 4421:(0.3, "un bosc"),
+             44782:(0.6, "un port"), 721207:(.6, "un port esportiu"), 1248784:(.8, "un aeroport"),
+             152081:(.4, "un camp de concentració"), 46169:(3, "un parc nacional"),
+             23397:(.15, "un llac"), 39594:(.3, "una badia"), 46831:(.8, "una serralada"),
+             400080:(.1, "una platja"), 4022:(3, "un riu"), 12284:(.8, "un canal"), 39816:(.8, "una vall")}
     return(tipus)
 
-def posainforme(llista, final=False, paginfo=pwb.Page(pwb.Site('ca'),"Usuari:PereBot/coordenades duplicades")):
+def posainforme(llista, llistano, llistainst, final=False, 
+                paginfo=pwb.Page(pwb.Site('ca'),"Usuari:PereBot/coordenades duplicades")):
     text = "Pàgines a les que el bot no ha pogut comprovar que les coordenades en local "
     text = text+"són a la pràctica les mateixes que les de Wikidata.\n\n"
     llista.sort()
-    text = text+"\n".join(llista)
+    text = text+"\n== Amb infotaula ==\n\n"+"\n".join(llista)
+    recompte = sorted(Counter(llistainst).items(), key=lambda item: item[1], reverse=True)
+    puntrecompte = ["# {{Q|"+str(x[0])+"}}: "+str(x[1]) for x in recompte]
+    text = text+"\n=== Instància (P31) ===\n\n"+"\n".join(puntrecompte)
+    llistano.sort()
+    text = text+"\n== Sense infotaula detectada ==\n\n"+"\n".join(llistano)
     text = text+"\n\n[[Especial:Cerca/\"no hi pot haver més d'una etiqueta primària per pàgina\"]]\n\n"
     if final:
         acabat="Llista finalitzada."
@@ -127,27 +140,39 @@ site=pwb.Site('ca')
 repo = site.data_repository()
 articles = site.search("no hi pot haver més d'una etiqueta primària per pàgina")
 print (articles)
-infoIGP = ["infotaula geografia política", "IGP", "infotaula de bisbat", "Infotaula de geografia política", "Infotaula d'entitat de població"]
-infoindret =["indret", "infotaula muntanya"]
-infotaules = infoIGP+infoindret+["infotaula de vial urbà", "infotaula edifici", "edifici", "infotaula d'obra artística"]
+infoIGP = ["infotaula geografia política", "IGP", "infotaula de bisbat", 
+           "Infotaula de geografia política", "Infotaula d'entitat de població",
+           "Infotaula de municipi"]
+infoindret =["indret", "infotaula muntanya","infotaula d'indret", "Infotaula indret"]
+infotaules = infoIGP+infoindret+["infotaula de vial urbà", "infotaula edifici", 
+                                 "edifici", "infotaula d'obra artística",
+                                 "Infotaula Perfil Torneig Tennis", "Infotaula conflicte militar",
+                                 "Jaciment arqueològic", "infotaula de lloc antic",
+                                 "Infotaula element hidrografia"]
 calcoors = ["cal coor", "cal coor esp", "cal coor cat"]
+tipus = tipuslim()
 i=0
 it=0
 ino=0
 informetot = []
+informeno = []
 vistos = []
-tipus = tipuslim()
+instancies = []
 for article in articles:
     d=False
     altreswd=" "
     i=i+1
     print(i, article)
-    if article in vistos:
-        print ("ja vist")
+    try:
+        if article in vistos:
+            print ("ja vist")
+            continue
+        vistos.append(article)
+        informe = "# [["+article.title()+"]]: "
+        text=article.get()
+    except pwb.NoPage:
+        print("pàgina inexistent")
         continue
-    vistos.append(article)
-    informe = "# [["+article.title()+"]]: "
-    text=article.get()
     code = hell.parse(text)
     plantilles=code.filter_templates();
     #print(plantilles)
@@ -275,11 +300,16 @@ for article in articles:
             print ("Segueix igual")
             treure = False
             informe = informe +" No s'ha pogut trure coord. "
-    if not treure:
-        informe = informe+str(d)+" km "+str(altreswd)
-        informetot.append(informe)
+    else:
+        informe = informe+str(d)+" km "+str(altreswd) + " " + ", ".join([str(x) for x in pcoord if "source" in x])
+        if hihainfotaula:
+            informetot.append(informe)
+            if "inst" in altreswd:
+                instancies = instancies+altreswd["inst"]
+        else:
+            informeno.append(informe)
         ino = ino+1
         if ino==40 or ino % 200 == 0:
-            posainforme(informetot)
-posainforme(informetot, final=True)
+            posainforme(informetot, informeno, instancies)
+posainforme(informetot, informeno, instancies, final=True)
 
