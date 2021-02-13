@@ -3,9 +3,15 @@
 # després de comprovar que les coordenades són al mateix lloc.
 
 import math
+from collections import Counter
+from random import sample
+import urllib
+from urllib.parse import unquote
+import sys
+import itertools
+from SPARQLWrapper import SPARQLWrapper, JSON
 import pywikibot as pwb
 import mwparserfromhell as hell
-from collections import Counter
 
 def distancia(lat1, lat2, lon1, lon2):
     dlat = lat1-lat2
@@ -115,7 +121,7 @@ def tipuslim():
              400080:(.1, "una platja"), 4022:(3, "un riu"), 12284:(.8, "un canal"), 39816:(.8, "una vall")}
     return(tipus)
 
-def posainforme(llista, llistano, llistainst, final=False, 
+def posainforme(llista, llistano, llistainst, quickstatements, final=False, 
                 paginfo=pwb.Page(pwb.Site('ca'),"Usuari:PereBot/coordenades duplicades")):
     text = "Pàgines a les que el bot no ha pogut comprovar que les coordenades en local "
     text = text+"són a la pràctica les mateixes que les de Wikidata.\n\n"
@@ -124,6 +130,7 @@ def posainforme(llista, llistano, llistainst, final=False,
     recompte = sorted(Counter(llistainst).items(), key=lambda item: item[1], reverse=True)
     puntrecompte = ["# {{Q|"+str(x[0])+"}}: "+str(x[1]) for x in recompte]
     text = text+"\n=== Instància (P31) ===\n\n"+"\n".join(puntrecompte)
+    text = text+"\n=== Quickstatements (P625) ===\n\n"+quickstatements+"\n"
     llistano.sort()
     text = text+"\n== Sense infotaula detectada ==\n\n"+"\n".join(llistano)
     text = text+"\n\n[[Especial:Cerca/\"no hi pot haver més d'una etiqueta primària per pàgina\"]]\n\n"
@@ -136,6 +143,90 @@ def posainforme(llista, llistano, llistainst, final=False,
     #print(text)
     return
 
+def get_results(endpoint_url, query):
+    user_agent = "PereBot/1.0 (ca:User:Pere_prlpz; prlpzb@gmail.com) Python/%s.%s" % (sys.version_info[0], sys.version_info[1])
+    sparql = SPARQLWrapper(endpoint_url, agent=user_agent)
+    sparql.setQuery(query)
+    sparql.setReturnFormat(JSON)
+    return sparql.query().convert()
+
+def get_parts(lloc):
+    # monuments existents amb codi IPAC
+    query = """# coordenades subdivisions d'un cantó
+    SELECT ?lat ?lon
+    WHERE {
+      ?lloc wdt:P7938|wdt:P131? wd:Q"""+lloc+""".
+    ?lloc p:P625 ?coordinate.
+    ?coordinate psv:P625 ?coordinate_node .
+    ?coordinate_node wikibase:geoLatitude ?lat .
+    ?coordinate_node wikibase:geoLongitude ?lon .
+    }"""
+    endpoint_url = "https://query.wikidata.org/sparql"
+    results = get_results(endpoint_url, query)
+    llista=[]
+    for mon in results["results"]["bindings"]:
+        llista.append((float(mon["lat"]["value"]), float(mon["lon"]["value"])))
+    return(llista)
+    
+def prodvect(centre, v1, v2):
+    # producte vectorial (v1-centre)x(v2-v1)
+    #print("centre:",centre, "v1:", v1, "v2:", v2)
+    radi = (v1[0]-centre[0], v1[1]-centre[1])
+    costat = (v2[0]-v1[0], v2[1]-v1[1])
+    return(radi[0]*costat[1]-radi[1]*costat[0])
+
+def punttriangle(punt, triangle):
+    #print("punt:", punt, "triangle:", triangle)
+    if prodvect(punt, triangle[0], triangle[1])>0:
+        if prodvect(punt, triangle[1], triangle[2])>0:
+            if prodvect(punt, triangle[2], triangle[0])>0:
+                return(True)
+            else:
+                return(False)
+        else:
+            return(False)
+    else:
+        if prodvect(punt, triangle[1], triangle[2])<0:
+            if prodvect(punt, triangle[2], triangle[0])<0:
+                return(True)
+            else:
+                return(False)
+        else:
+            return(False)
+
+def puntsdins(centre, llocs):
+    #triangles d'un núvol de llocs que contenen el centre i total de triangles
+    #print("centre:", centre, "llocs:", llocs)
+    if len(llocs)>220:
+        llocs=sample(llocs, 220)
+    dins=[punttriangle(centre,x) for x in itertools.combinations(llocs,3)]
+    return(sum(dins), len(dins))
+   
+def puntsadinslloc(qlloc, centres):
+    llocs=get_parts(qlloc)
+    return([puntsdins(x, llocs) for x in centres])
+
+def urlloc(lloc, llarg=True):
+    if llarg:
+        url= "https://query.wikidata.org/#SELECT%20%3Flloc%20%3FllocLabel%20%3Fcoordinate%20%3Flayer%0AWHERE%20%7B%0A%20%20%3Flloc%20wdt%3AP7938%7Cwdt%3AP131%3F%20wd%3AQ"
+        url= url+lloc
+        url=url+".%0A%20%20%3Flloc%20wdt%3AP625%20%3Fcoordinate.%0A%20%20%3Flloc%20wdt%3AP31%20%3Flayer.%0ASERVICE%20wikibase%3Alabel%20%7Bbd%3AserviceParam%20wikibase%3Alanguage%20%22%5BAUTO_LANGUAGE%5D%2Cca%2Cen%2Ces%22.%7D%20%20%20%0A%7D%0A%23defaultView%3AMap"
+    else:
+        url= "https://query.wikidata.org/#SELECT%20%3Fll%20%3FllLabel%20%3Fcoordinate%20%3Flayer%0AWHERE%20%7B%0A%20%20%3Fll%20wdt%3AP7938%7Cwdt%3AP131%3F%20wd%3AQ"
+        url= url+lloc
+        url=url+'.%0A%3Fll%20wdt%3AP625%20%3Fcoordinate.%0A%3Fll%20wdt%3AP31%20%3Flayer.%0ASERVICE%20wikibase%3Alabel%20%7Bbd%3AserviceParam%20wikibase%3Alanguage%20"ca".%7D%20%20%20%0A%7D%0A'
+    return(url)
+
+def quickcoord(lloc, latwd, lonwd, lat, lon):
+    indexq="Q"+lloc
+    #Treu
+    instruccio = "-"+indexq+"|"+"P625"+"|"+"@"+str(latwd)+"/"+str(lonwd) +"||"
+    #Posa
+    instruccio = instruccio + indexq+"|"+"P625"+"|"+"@"+str(lat)+"/"+str(lon)
+    instruccio = instruccio + "|S143|Q199693"+"||"
+    return(instruccio)
+
+# el programa comença aquí
 site=pwb.Site('ca')
 repo = site.data_repository()
 articles = site.search("no hi pot haver més d'una etiqueta primària per pàgina")
@@ -144,13 +235,17 @@ infoIGP = ["infotaula geografia política", "IGP", "infotaula de bisbat",
            "Infotaula de geografia política", "Infotaula d'entitat de població",
            "Infotaula de municipi"]
 infoindret =["indret", "infotaula muntanya","infotaula d'indret", "Infotaula indret"]
-infotaules = infoIGP+infoindret+["infotaula de vial urbà", "infotaula edifici", 
-                                 "edifici", "infotaula d'obra artística",
-                                 "Infotaula Perfil Torneig Tennis", "Infotaula conflicte militar",
-                                 "Jaciment arqueològic", "infotaula de lloc antic",
-                                 "Infotaula element hidrografia"]
+infoedifici =["infotaula de vial urbà", "infotaula edifici", "edifici"]
+infoaltres = ["infotaula d'obra artística",
+                "Infotaula Perfil Torneig Tennis", "Infotaula conflicte militar",
+                "Jaciment arqueològic", "infotaula de lloc antic",
+                "Infotaula element hidrografia", "infotaula esdeveniment"]
+infotaules = infoIGP+infoindret+infoedifici+infoaltres
 calcoors = ["cal coor", "cal coor esp", "cal coor cat"]
 tipus = tipuslim()
+entitatsadm = [18524218, 184188, 2469744, 28006240, 3141478, 61763799, 1518096, 2039348,
+               1149652, 2177636, 16543169, 192287, 211690, 41067667, 1093829, 1146429]
+entitatsadmtreure = [18524218, 184188]
 i=0
 it=0
 ino=0
@@ -158,6 +253,7 @@ informetot = []
 informeno = []
 vistos = []
 instancies = []
+quick = ""
 for article in articles:
     d=False
     altreswd=" "
@@ -177,13 +273,14 @@ for article in articles:
     plantilles=code.filter_templates();
     #print(plantilles)
     hihainfotaula=False
+    infotaulesart = []
     present = ""
     pcoord =[]
     ncoord=0
     jatret=False
     for plantilla in plantilles:
         #print (plantilla.name)
-        if plantilla.name.matches("coord"):
+        if (plantilla.name.matches("coord") or plantilla.name.matches("coordenades")):
             print (plantilla.params)
             if plantilla.has("display") and "inline" in plantilla.get("display") and "title" in plantilla.get("display"):
                 plantilla.add("display", "inline")
@@ -214,6 +311,7 @@ for article in articles:
             for infotaula in infotaules:
                 if plantilla.name.matches(infotaula):
                     hihainfotaula = True
+                    infotaulesart.append(plantilla)
                     present = infotaula
                     print(plantilla.name)
                     informe = informe+infotaula+"; "
@@ -234,6 +332,38 @@ for article in articles:
                         print ("Segueix igual")
                         treure = False
                         informe = informe +" No s'ha pogut treure "+calcoor+". "
+    if jatret:
+        continue
+    if len(infotaulesart)>1:
+        print("Dues infotaules:", infotaulesart)
+        plantillaIGP=False
+        plantillaedifici=False
+        for infotaulart in infotaulesart:
+            for infotaula in infoIGP:
+                if infotaulart.name.matches(infotaula):
+                    plantillaIGP=infotaulart
+            for infotaula in infoedifici:
+                if infotaulart.name.matches(infotaula):
+                    plantillaedifici=infotaulart
+        if plantillaIGP and plantillaedifici:
+            print("Infotaula de geografia política i infotaula d'edifici")
+            if (not plantillaIGP.has("coord_display")) and (not plantillaedifici.has("coord_display")):
+                plantillaedifici.add("coord_display", "inline")
+                print("Posat coord_display=inline a la infotaula d'edifici")
+                textnou=str(code)
+                if textnou != text:
+                    textnou = textnou.replace("\n\n\n\n","\n\n")
+                    textnou = textnou.replace("\n\n\n","\n\n")
+                    #print ("Ha canviat. Desar.")
+                    sumari = "Robot posa coord_display=inline a la infotaula d'edifici"
+                    it = it+1
+                    print(it, sumari)
+                    article.put(textnou, sumari)
+                    jatret=True
+                else:
+                    print ("Segueix igual")
+                    treure = False
+                    informe = informe +" No s'ha pogut posar coord_display=inline a la infotaula d'edifici"
     if jatret:
         continue
     treure=False
@@ -273,7 +403,7 @@ for article in articles:
             sumariextra=", suficient per "+tipusi
         elif "inst" in altreswd and 23442 in altreswd["inst"] and "pop" in altreswd and altreswd["pop"]>50 and d<1:
             treure = True
-            sumariextra=", suficient per illa habitada"       
+            sumariextra=", suficient per illa habitada"           
         else:
             print("Massa lluny")
     else:
@@ -282,9 +412,27 @@ for article in articles:
         if ncoord != 1:
             altreswd=altreswd+str(ncoord)+" coordenades"
         print("Coordenades no trobades o no hi ha infotaula")
+    if not treure and "inst" in altreswd and any([x in altreswd["inst"] for x in entitatsadm]):
+        print ("provant triangles formats per entitats contingudes a l'entitat (P131)")
+        centres=[(latwd, lonwd), (lat, lon)]
+        lloc = pwb.ItemPage.fromPage(article).title()[1:]
+        compara = puntsadinslloc(lloc, centres)
+        print (compara)
+        if compara[0][1]>5 and compara[0][0]>compara[1][0]:
+            treure = True
+            sumariextra = ", i no tan al mig dels elements localitzats aquí "+"["+urlloc(lloc, llarg=False)+"]"
+        else:
+            informe = informe +" triangles: wd:"+str(compara[0])+" wp:"+str(compara[1])+"["+urlloc(lloc)+"] "
+            informe = informe + quickcoord(lloc, latwd, lonwd, lat, lon)+" "
+            if compara[0][1]>5 and compara[0][0]<compara[1][0]:
+                if any([x in altreswd["inst"] for x in entitatsadmtreure]):
+                    quick = quick + quickcoord(lloc, latwd, lonwd, lat, lon)+"\n"
+                    informe = informe + "Pujar. "
+                else:
+                    informe = informe + "Pujaria. "
     if treure:
         for plantilla in plantilles:
-            if plantilla.name.matches("coord") and plantilla.has("display") and "title" in plantilla.get("display"):
+            if (plantilla.name.matches("coord") or plantilla.name.matches("coordenades")) and plantilla.has("display") and "title" in plantilla.get("display"):
                 code.remove(plantilla)
         textnou=str(code)
         if textnou != text:
@@ -310,6 +458,6 @@ for article in articles:
             informeno.append(informe)
         ino = ino+1
         if ino==40 or ino % 200 == 0:
-            posainforme(informetot, informeno, instancies)
-posainforme(informetot, informeno, instancies, final=True)
+            posainforme(informetot, informeno, instancies, quick)
+posainforme(informetot, informeno, instancies, quick, final=True)
 
