@@ -114,14 +114,16 @@ def tipuslim():
     tipus = {515:(.8, "una ciutat"), 1549591:(1.5, "una gran ciutat"), 123705:(.5, "un barri"),  
              184188:(1, "un cantó francès"), 18524218:(1, "un cantó francès"), 
              1402592:(1.5, "un grup d'illes"), 33837:(3, "un arxipèlag"),
+             42523:(.4, "un atol"),
              612741:(3, "un bosc nacional"), 4421:(0.3, "un bosc"),
              44782:(0.6, "un port"), 721207:(.6, "un port esportiu"), 1248784:(.8, "un aeroport"),
              152081:(.4, "un camp de concentració"), 46169:(3, "un parc nacional"),
+             328468:(.5, "un camp de concentració nazi"),
              23397:(.15, "un llac"), 39594:(.3, "una badia"), 46831:(.8, "una serralada"),
-             400080:(.1, "una platja"), 4022:(3, "un riu"), 12284:(.8, "un canal"), 39816:(.8, "una vall")}
+             40080:(.12, "una platja"), 4022:(3, "un riu"), 12284:(.8, "un canal"), 39816:(.8, "una vall")}
     return(tipus)
 
-def posainforme(llista, llistano, llistainst, quickstatements, final=False, 
+def posainforme(llista, llistano, llistainst, quickstatements, llistanoinst, final=False, 
                 paginfo=pwb.Page(pwb.Site('ca'),"Usuari:PereBot/coordenades duplicades")):
     text = "Pàgines a les que el bot no ha pogut comprovar que les coordenades en local "
     text = text+"són a la pràctica les mateixes que les de Wikidata.\n\n"
@@ -130,6 +132,10 @@ def posainforme(llista, llistano, llistainst, quickstatements, final=False,
     recompte = sorted(Counter(llistainst).items(), key=lambda item: item[1], reverse=True)
     puntrecompte = ["# {{Q|"+str(x[0])+"}}: "+str(x[1]) for x in recompte]
     text = text+"\n=== Instància (P31) ===\n\n"+"\n".join(puntrecompte)
+    llistainstmanca = [x for x in llistainst if x not in llistanoinst]
+    recompte = sorted(Counter(llistainstmanca).items(), key=lambda item: item[1], reverse=True)
+    puntrecompte = ["# {{Q|"+str(x[0])+"}}: "+str(x[1])+". "+str(x[0]) for x in recompte]
+    text = text+"\n=== Instància no comprova items continguts ===\n\n"+"\n".join(puntrecompte)
     text = text+"\n=== Quickstatements (P625) ===\n\n"+quickstatements+"\n"
     llistano.sort()
     text = text+"\n== Sense infotaula detectada ==\n\n"+"\n".join(llistano)
@@ -151,11 +157,10 @@ def get_results(endpoint_url, query):
     return sparql.query().convert()
 
 def get_parts(lloc):
-    # monuments existents amb codi IPAC
     query = """# coordenades subdivisions d'un cantó
     SELECT ?lat ?lon
     WHERE {
-      ?lloc wdt:P7938|wdt:P131? wd:Q"""+lloc+""".
+      ?lloc wdt:P7938|wdt:P706|wdt:P131 wd:Q"""+lloc+""".
     ?lloc p:P625 ?coordinate.
     ?coordinate psv:P625 ?coordinate_node .
     ?coordinate_node wikibase:geoLatitude ?lat .
@@ -208,19 +213,21 @@ def puntsadinslloc(qlloc, centres):
 
 def urlloc(lloc, llarg=True):
     if llarg:
-        url= "https://query.wikidata.org/#SELECT%20%3Flloc%20%3FllocLabel%20%3Fcoordinate%20%3Flayer%0AWHERE%20%7B%0A%20%20%3Flloc%20wdt%3AP7938%7Cwdt%3AP131%3F%20wd%3AQ"
+        url= "https://query.wikidata.org/#SELECT%20%3Flloc%20%3FllocLabel%20%3Fcoordinate%20%3Flayer%0AWHERE%20%7B%0A%20%20%3Flloc%20wdt%3AP7938%7Cwdt%3AP706%7Cwdt%3AP131%3F%20wd%3AQ"
         url= url+lloc
         url=url+".%0A%20%20%3Flloc%20wdt%3AP625%20%3Fcoordinate.%0A%20%20%3Flloc%20wdt%3AP31%20%3Flayer.%0ASERVICE%20wikibase%3Alabel%20%7Bbd%3AserviceParam%20wikibase%3Alanguage%20%22%5BAUTO_LANGUAGE%5D%2Cca%2Cen%2Ces%22.%7D%20%20%20%0A%7D%0A%23defaultView%3AMap"
     else:
-        url= "https://query.wikidata.org/#SELECT%20%3Fll%20%3FllLabel%20%3Fcoordinate%20%3Flayer%0AWHERE%20%7B%0A%20%20%3Fll%20wdt%3AP7938%7Cwdt%3AP131%3F%20wd%3AQ"
+        url= "https://query.wikidata.org/#SELECT%20%3Fll%20%3FllLabel%20%3Fcoordinate%20%3Flayer%0AWHERE%20%7B%0A%20%20%3Fll%20wdt%3AP7938%7Cwdt%3AP706%7Cwdt%3AP131%3F%20wd%3AQ"
         url= url+lloc
         url=url+'.%0A%3Fll%20wdt%3AP625%20%3Fcoordinate.%0A%3Fll%20wdt%3AP31%20%3Flayer.%0ASERVICE%20wikibase%3Alabel%20%7Bbd%3AserviceParam%20wikibase%3Alanguage%20"ca".%7D%20%20%20%0A%7D%0A'
     return(url)
 
-def quickcoord(lloc, latwd, lonwd, lat, lon):
+def quickcoord(lloc, latwd, lonwd, lat, lon, treure=True):
     indexq="Q"+lloc
+    instruccio = ""
     #Treu
-    instruccio = "-"+indexq+"|"+"P625"+"|"+"@"+str(latwd)+"/"+str(lonwd) +"||"
+    if treure:
+        instruccio = instruccio + "-"+indexq+"|"+"P625"+"|"+"@"+str(latwd)+"/"+str(lonwd) +"||"
     #Posa
     instruccio = instruccio + indexq+"|"+"P625"+"|"+"@"+str(lat)+"/"+str(lon)
     instruccio = instruccio + "|S143|Q199693"+"||"
@@ -234,18 +241,43 @@ print (articles)
 infoIGP = ["infotaula geografia política", "IGP", "infotaula de bisbat", 
            "Infotaula de geografia política", "Infotaula d'entitat de població",
            "Infotaula de municipi"]
-infoindret =["indret", "infotaula muntanya","infotaula d'indret", "Infotaula indret"]
-infoedifici =["infotaula de vial urbà", "infotaula edifici", "edifici"]
+infoindret =["indret", "infotaula muntanya","infotaula d'indret", 
+             "Infotaula indret", "bosc"]
+infoedifici =["infotaula de vial urbà", "infotaula vial urbà", 
+              "infotaula edifici", "edifici"]
 infoaltres = ["infotaula d'obra artística",
                 "Infotaula Perfil Torneig Tennis", "Infotaula conflicte militar",
                 "Jaciment arqueològic", "infotaula de lloc antic",
-                "Infotaula element hidrografia", "infotaula esdeveniment"]
+                "Infotaula element hidrografia", "infotaula esdeveniment",
+                "Competició esportiva"]
 infotaules = infoIGP+infoindret+infoedifici+infoaltres
 calcoors = ["cal coor", "cal coor esp", "cal coor cat"]
 tipus = tipuslim()
 entitatsadm = [18524218, 184188, 2469744, 28006240, 3141478, 61763799, 1518096, 2039348,
-               1149652, 2177636, 16543169, 192287, 211690, 41067667, 1093829, 1146429]
-entitatsadmtreure = [18524218, 184188]
+               1149652, 2177636, 16543169, 192287, 211690, 41067667, 1093829, 
+               1146429, 200547, 2074737, 1062593, 515, 1549591, 1952852, 23442, 46831,
+               12397176, 165, 56061, 1234255, 2179958, 56557504, 39816, 1637706, 34763,
+               15284, 12813115, 3257686, 3957, 15092344, 46831, 486972,
+               42744322, 2755753, 7631958, 22865, 253030, 42744322, 532, 22746,
+               85631896, 123705, 748198, 555937, 20097897, 15239622, 6083496, 15042037,
+               70208, 75520, 160091, 685309, 19644586, 54935504, 1149621, 605291, 16110,
+               24764, 913337, 871419, 2616791, 82794, 719987, 1145012, 64913082, 
+               20202352, 473972, 55102916, 42523, 1131296, 462778, 15239622, 2989398, 
+               13539802, 1959314, 174782, 1985797, 10267336, 501094, 158683, 5055981,
+               7265977, 39816, 25412763, 494721, 5084, 2616791, 55998242, 845820,
+               38911, 42744322, 747074, 202595, 17001376, 34876, 2983893, 15149663,
+               856076, 1496967, 127448, 517351, 486972, 7309443, 1350181, 67376938,
+               16858213, 8502, 2824648, 56436498, 1852859, 1402592, 902814, 33837,
+               7930989, 4976993, 3055118, 5119, 46169, 612741, 2555896, 152081,
+               56436498, 56059, 2864107, 194203, 34918903, 59136, 204894, 50337,
+               2264924, 216888, 216888, 498162, 19730508, 3249005, 24746, 188509,
+               12443800, 15059108, 58339518, 3624078, 952274, 815068, 925381,
+               15069452, 15069452, 179049, 21518270, 66661665, 659103, 59369306,
+               3184121, 115291, 2216973, 79324274, 7830262, 18670606, 162620,
+               1230132, 19833031, 8514, 1147395, 183342, 319796, 123266, 955655,
+               328584, 207299, 3054037, 3327920, 1065118, 1770467, 867567, 4814017]
+entitatsadmtreure = [184188]
+entitatsnomesposar = [2039348]
 i=0
 it=0
 ino=0
@@ -418,16 +450,19 @@ for article in articles:
         lloc = pwb.ItemPage.fromPage(article).title()[1:]
         compara = puntsadinslloc(lloc, centres)
         print (compara)
-        if compara[0][1]>5 and compara[0][0]>compara[1][0]:
+        if compara[0][1]>0 and compara[0][0]*1.1>compara[1][0]:
             treure = True
-            sumariextra = ", i no tan al mig dels elements localitzats aquí "+"["+urlloc(lloc, llarg=False)+"]"
+            sumariextra = ", i no tan al mig dels elements localitzats aquí "+""+urlloc(lloc, llarg=False)+""
         else:
             informe = informe +" triangles: wd:"+str(compara[0])+" wp:"+str(compara[1])+"["+urlloc(lloc)+"] "
             informe = informe + quickcoord(lloc, latwd, lonwd, lat, lon)+" "
-            if compara[0][1]>5 and compara[0][0]<compara[1][0]:
+            if compara[0][1]>0 and compara[0][0]<compara[1][0]:
                 if any([x in altreswd["inst"] for x in entitatsadmtreure]):
                     quick = quick + quickcoord(lloc, latwd, lonwd, lat, lon)+"\n"
                     informe = informe + "Pujar. "
+                elif any([x in altreswd["inst"] for x in entitatsnomesposar]):
+                    quick = quick + quickcoord(lloc, latwd, lonwd, lat, lon, treure=False)+"\n"
+                    informe = informe + "Pujar i comprovar. "
                 else:
                     informe = informe + "Pujaria. "
     if treure:
@@ -458,6 +493,6 @@ for article in articles:
             informeno.append(informe)
         ino = ino+1
         if ino==40 or ino % 200 == 0:
-            posainforme(informetot, informeno, instancies, quick)
-posainforme(informetot, informeno, instancies, quick, final=True)
+            posainforme(informetot, informeno, instancies, quick, entitatsadm)
+posainforme(informetot, informeno, instancies, quick, entitatsadm, final=True)
 

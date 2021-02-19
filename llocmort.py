@@ -1,5 +1,9 @@
 #-*- coding: utf-8 -*-
 # Categoritza per lloc de la mort d'acord amb Wikidata
+# Adaptat del programa equivalent per lloc de naixement, els noms de les variables poden ser poc adients.
+# Arguments:
+# -sub: inclou els morts als llocs sense categoria als llocs que els inclouen (P131)
+# -tot: com sub i a més posa també categories per llocs grans (estats, comunitats autònomes, etc.).
 
 import pywikibot as pwb
 from pywikibot import pagegenerators
@@ -46,7 +50,7 @@ def carrega_no(disc=False):
 
 def get_catwd(desa=True):
     print("Carregant articles i categories de Wikidata")
-    query="""# categories persones per lloc
+    query="""# categories persones per lloc de la mort
     SELECT DISTINCT ?lloc ?cat ?categoria
     WHERE {
         ?lloc wdt:P1465 ?cat.
@@ -69,9 +73,9 @@ def carrega_catwd(desa=True, disc=False):
         a=get_catwd(desa)
     return(a)
 
-def get_nascutswd(qllocs):
+def get_mortswd(qllocs):
     print("Carregant articles de Wikidata")
-    query="""# articles de persones nascudes en uns llocs
+    query="""# articles de persones mortes en un lloc
     SELECT DISTINCT ?lloc ?persona ?article
     WHERE {
         VALUES ?lloc {"""+" ".join(["wd:"+el for el in qllocs])+"""}
@@ -85,9 +89,26 @@ def get_nascutswd(qllocs):
     wd = results["results"]["bindings"]
     return (wd)
 
+def get_mortssubwd(qllocs):
+    print("Carregant articles de Wikidata")
+    query="""# articles de persones mortes en un lloc i les seves divisions
+    SELECT DISTINCT ?lloc ?persona ?article
+    WHERE {
+        VALUES ?lloc {"""+" ".join(["wd:"+el for el in qllocs])+"""}
+        ?persona wdt:P31 wd:Q5.
+        ?persona wdt:P20 ?llocConcret.
+        ?llocConcret wdt:P131* ?lloc.
+        ?article schema:about ?persona.
+        ?article schema:isPartOf <https://ca.wikipedia.org/>.
+    }"""
+    endpoint_url = "https://query.wikidata.org/sparql"
+    results = get_results(endpoint_url, query)
+    wd = results["results"]["bindings"]
+    return (wd)
+
 def get_redundantswd(qllocs):
     print("Carregant categories redundants de Wikidata")
-    query="""# categories redundants per origen
+    query="""# categories redundants per mort
     SELECT DISTINCT ?lloc ?redundant ?llocLabel ?categoria
     WHERE {
       VALUES ?lloc {"""+" ".join(["wd:"+el for el in qllocs])+"""}
@@ -164,6 +185,8 @@ def posacat(cat, catsno=[], arts=[], site=pwb.Site('ca')):
 
 
 # el programa comença aquí
+sub=False
+tot=False
 disc=False
 discvp=False
 desa=True
@@ -172,6 +195,14 @@ editacat=True
 creacat=False
 arguments = sys.argv[1:]
 if len(arguments)>0:
+    if "-sub" in arguments:
+        sub=True
+        tot=False
+        arguments.remove("-sub")
+    if "-tot" in arguments:
+        sub=True
+        tot=True
+        arguments.remove("-tot")
     if "-disc" in arguments:
         disc=True
         arguments.remove("-disc")
@@ -203,7 +234,7 @@ nomirar = carrega_no()
 #print (nomirar)
 catwd = carrega_catwd(disc=disc)
 #print(catwd)
-if False: #True canviar per ignorar els grans
+if not tot: #ignorar els grans
     qno = [x["lloc"]["value"].replace("http://www.wikidata.org/entity/","") for x in nomirar]
 else:
     qno = []
@@ -224,7 +255,10 @@ dcats = {x: dcats[x] for x in qsi}
 #print(dcats)
 print(len(dcats))
 ncats=len(dcats)
-midagrup = 25
+if sub:
+    midagrup=1
+else:
+    midagrup = 25
 qgrups = [qsi[x:x+midagrup] for x in range(0,len(qsi), midagrup)]
 #print(qgrups)
 print(len(qgrups))
@@ -232,12 +266,15 @@ total=0
 icat=0
 for qgrup in qgrups:
     print(qgrup)
-    nascutswd = get_nascutswd(qgrup) 
-    #print(nascutswd)
-    total = total+len(nascutswd)
-    print(len(nascutswd))
+    if sub:
+        mortswd = get_mortssubwd(qgrup) 
+    else:
+        mortswd = get_mortswd(qgrup) 
+    #print(mortswd)
+    total = total+len(mortswd)
+    print(len(mortswd))
     nascutsllocwd = {}
-    for art in nascutswd:
+    for art in mortswd:
         lloc = art["lloc"]["value"].replace("http://www.wikidata.org/entity/","")
         article = urllib.parse.unquote(art["article"]["value"].replace("https://ca.wikipedia.org/wiki/","")).replace("_"," ")
         if lloc in nascutsllocwd:

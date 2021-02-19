@@ -166,7 +166,8 @@ notocar = ["Categoria:Grammy a l'àlbum de l'any", "Categoria:Pel·lícules guan
 "Categoria:BAFTA", "Categoria:Guanyadors del Globus d'Or al millor director",
 "Categoria:Guanyadors del Premi Booker", "Categoria:Premis Ramon Llull de novel·la",
 "Categoria:Premis de traducció","Categoria:Figueres", "Categoria:Copa Intertoto de la UEFA",
-"Categoria:Premis"]
+"Categoria:Premis", "Categoria:Guanyadors del Premi Laurence Olivier",
+"Categoria:Guanyadors del Premi Tony"]
 notocarreg = "Categoria:(Jocs Olímpics|Festival|Foment|.*(premi Oscar|[Pp]el·lícules|BAFTA|Goncourt|[Pp]remi Goya))"
 diccpral, diccprem = dicccategories()
 #print(diccpral)
