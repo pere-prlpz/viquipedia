@@ -4,6 +4,11 @@
 # Arguments:
 # -sub: inclou els morts als llocs sense categoria als llocs que els inclouen (P131)
 # -tot: com sub i a més posa també categories per llocs grans (estats, comunitats autònomes, etc.).
+# -noestats: com tot però sense estats sobirans ni continents
+# Si s'ha d'actualitzar molt pot ser recomanable fer primer una passada amb -sub, 
+# després una passada amb -noestats i després una passada amb -tot, i d'aquesta manera
+# evitar editar gaires vegades el mateix article.
+# Si hi ha poc a actualitzar, pot ser més practic fer -tot directament.
 
 import pywikibot as pwb
 from pywikibot import pagegenerators
@@ -21,12 +26,16 @@ def get_results(endpoint_url, query):
     sparql.setReturnFormat(JSON)
     return sparql.query().convert()
 
-def get_no(desa=True):
+def get_no(nomesestats=False, desa=True):
     print("Carregant articles i categories de Wikidata")
+    if nomesestats:
+        altres=""
+    else:
+        altres="wd:Q10742 wd:Q35657 wd:Q15304003 wd:Q83057 wd:Q3336843 wd:Q3024240"
     query="""# categories de nascuts o relacionats amb estats, comunitats, etc.
     SELECT DISTINCT ?lloc ?cat ?categoria
     WHERE {
-        VALUES ?grans {wd:Q5107 wd:Q3624078 wd:Q10742 wd:Q35657 wd:Q15304003 wd:Q83057 wd:Q3336843 wd:Q3024240}
+        VALUES ?grans {wd:Q5107 wd:Q3624078 """+altres+"""}
         ?lloc wdt:P31 ?grans.
         ?lloc wdt:P1465 ?cat.
         ?categoria schema:about ?cat.
@@ -40,6 +49,7 @@ def get_no(desa=True):
         pickle.dump(wd, open(fitxer, "wb")) 
     return (wd)
 
+# carrega_no no emprat perquè no fem servir el disc
 def carrega_no(disc=False):
     try:
         a=pickle.load(open(r"C:\Users\Pere\Documents\perebot\noorigen.pkl", "rb"))
@@ -187,6 +197,7 @@ def posacat(cat, catsno=[], arts=[], site=pwb.Site('ca')):
 # el programa comença aquí
 sub=False
 tot=False
+noestats=False
 disc=False
 discvp=False
 desa=True
@@ -203,6 +214,10 @@ if len(arguments)>0:
         sub=True
         tot=True
         arguments.remove("-tot")
+    if "-noestats" in arguments:
+        sub=True
+        noestats=True
+        arguments.remove("-noestats")
     if "-disc" in arguments:
         disc=True
         arguments.remove("-disc")
@@ -230,11 +245,11 @@ if len(arguments)>0:
         arguments.remove("-max")
     else:
         maxcats=4
-nomirar = carrega_no()
-#print (nomirar)
 catwd = carrega_catwd(disc=disc)
 #print(catwd)
 if not tot: #ignorar els grans
+    nomirar = get_no(desa=False, nomesestats=noestats)
+    #print (nomirar)
     qno = [x["lloc"]["value"].replace("http://www.wikidata.org/entity/","") for x in nomirar]
 else:
     qno = []
@@ -273,6 +288,9 @@ for qgrup in qgrups:
     #print(mortswd)
     total = total+len(mortswd)
     print(len(mortswd))
+    if len(mortswd)==0:
+        print("Cap mort en aquest grup")
+        continue
     nascutsllocwd = {}
     for art in mortswd:
         lloc = art["lloc"]["value"].replace("http://www.wikidata.org/entity/","")
@@ -287,7 +305,7 @@ for qgrup in qgrups:
         icat=icat+1
         cat=dcats[qlloc]
         print(icat,"/", ncats, cat, qlloc)
-        if not(qlloc in nascutsllocwd):
+        if not(qlloc in nascutsllocwd):# and not(sub):
             print("No cal buscar")
             continue
         articles=artcat(cat)
