@@ -19,3 +19,4 @@ calcoor.py: treu les plantilles de la família cal coor dels articles que ja ten
 
 treucoor.py: treu la plantilla coord si hi ha alguna infotaula que fa el mateix i les coordenades de la plantilla són prou iguals a les de Wikidata
 
+discussions.py: actualitza Viquiprojecte:Discussions desateses/discussions
