@@ -86,6 +86,7 @@ for urlweb in pagweb:
                 textnet=re.sub(re_negreta,u"",textnet)
                 textnet=re.sub(re_cometes,u"",textnet)
                 textnet=re.sub(re_imatge,u"",textnet)
+                textnet=textnet.replace("{{VPBDN}}","")
                 textnet=textnet.replace(u"\n","")
                 llargnet=len(textnet)
                 hihatrad=re.search(re_trad,text)
@@ -96,6 +97,10 @@ for urlweb in pagweb:
                 elif u"{{discussió arxivada}}" in text:
                         print (tit, u"Discussió arxivada")
                         linia=u"*[[{}]] (discussió arxivada)\n".format(tit)
+                        informeno = informeno + linia
+                elif llargnet < 10:
+                        print (tit, u"Discussió curta")
+                        linia=u"*[[{}]]\n".format(tit)
                         informeno = informeno + linia
                 else:
                         informe = informe + linia
