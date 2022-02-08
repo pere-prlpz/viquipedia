@@ -1,5 +1,11 @@
 #-*- coding: utf-8 -*-
 
+# posa categories per origen a partir del lloc de naixement segons wikidata
+# Paràmetres (incomplet):
+# -1 (menys u, no menys L) Mira també les divisons administratives de cada lloc (amb P131)
+#     però només mira un nivell, o sigui, les directament relacionades amb P131.
+# -2 i més números fins a -5: mira el nombre de nivells especificat
+
 import pywikibot as pwb
 from pywikibot import pagegenerators
 from SPARQLWrapper import SPARQLWrapper, JSON
@@ -7,6 +13,8 @@ import re
 import pickle
 import sys
 import urllib
+import urllib.request
+#import json
 from urllib.parse import unquote
 
 def get_results(endpoint_url, query):
@@ -18,11 +26,10 @@ def get_results(endpoint_url, query):
 
 def get_no(desa=True):
     print("Carregant articles i categories de Wikidata")
-    query="""# categories de nascuts o relacionats amb estats, comunitats, etc.
+    query="""# categories de llocs problemàtics per P131
     SELECT DISTINCT ?lloc ?cat ?categoria
     WHERE {
-        VALUES ?grans {wd:Q5107 wd:Q3624078 wd:Q10742 wd:Q15304003 wd:Q3336843 wd:Q3024240}
-        ?lloc wdt:P31 ?grans.
+        VALUES ?lloc {wd:Q29 wd:Q142 wd:Q15180 wd:Q28513 wd:Q16957 wd:Q33946 wd:Q12560}
         ?lloc wdt:P1464|wdt:P1792 ?cat.
         ?categoria schema:about ?cat.
         ?categoria schema:isPartOf <https://ca.wikipedia.org/>.
@@ -31,16 +38,20 @@ def get_no(desa=True):
     endpoint_url = "https://query.wikidata.org/sparql"
     results = get_results(endpoint_url, query)
     wd = results["results"]["bindings"]
+    print(wd)
     if desa:
         fitxer = r"C:\Users\Pere\Documents\perebot\noorigen.pkl"
         pickle.dump(wd, open(fitxer, "wb")) 
     return (wd)
 
 def carrega_no(disc=False):
-    try:
-        a=pickle.load(open(r"C:\Users\Pere\Documents\perebot\noorigen.pkl", "rb"))
-    except FileNotFoundError:
-        print ("Fitxer origens no mirar no trobat. Important de Wikidata.")
+    if disc:
+        try:
+            a=pickle.load(open(r"C:\Users\Pere\Documents\perebot\noorigen.pkl", "rb"))
+        except FileNotFoundError:
+            print ("Fitxer origens no mirar no trobat. Important de Wikidata.")
+            a=get_no()
+    else:
         a=get_no()
     return(a)
 
@@ -52,6 +63,7 @@ def get_catwd(desa=True):
         ?lloc wdt:P1464|wdt:P1792 ?cat.
         ?categoria schema:about ?cat.
         ?categoria schema:isPartOf <https://ca.wikipedia.org/>.
+      MINUS {?lloc wdt:P31 wd:Q50068795}
     }"""
     endpoint_url = "https://query.wikidata.org/sparql"
     results = get_results(endpoint_url, query)
@@ -69,14 +81,26 @@ def carrega_catwd(desa=True, disc=False):
         a=get_catwd(desa)
     return(a)
 
-def get_nascutswd(qllocs):
+def get_nascutswd(qllocs, sub=0):
     print("Carregant articles de Wikidata")
+    if sub==1:
+        p131 = "/wdt:P131?"
+    elif sub==2:
+        p131 = "/wdt:P131?/wdt:P131?"
+    elif sub==3:
+        p131 = "/wdt:P131?/wdt:P131?/wdt:P131?"
+    elif sub==4:
+        p131 = "/wdt:P131?/wdt:P131?/wdt:P131?/wdt:P131?"
+    elif sub==5:
+        p131 = "/wdt:P131?/wdt:P131?/wdt:P131?/wdt:P131?/wdt:P131?"
+    else:
+        p131 = ""
     query="""# articles de persones nascudes en uns llocs
     SELECT DISTINCT ?lloc ?persona ?article
     WHERE {
         VALUES ?lloc {"""+" ".join(["wd:"+el for el in qllocs])+"""}
         ?persona wdt:P31 wd:Q5.
-        ?persona wdt:P19 ?lloc.
+        ?persona wdt:P19"""+p131+""" ?lloc.
         ?article schema:about ?persona.
         ?article schema:isPartOf <https://ca.wikipedia.org/>.
     }"""
@@ -114,8 +138,41 @@ def artcat(catnom, site=pwb.Site('ca'), profunditat=8):
         llistart.append(art.title())
     return(llistart)
 
+def miracat(catnom, site=pwb.Site('ca'), dicc={}, prof=20):
+    print(catnom, prof)
+    jahies = catnom in dicc
+    if jahies:
+        art0 = dicc[catnom]["art0"]
+        cat0 = dicc[catnom]["cat0"]
+    else:
+        cat = pwb.Category(site,catnom)
+        articles = pagegenerators.CategorizedPageGenerator(cat, recurse=0)
+        art0 = []
+        for art in articles:
+            art0.append(art.title())
+        categories = pagegenerators.SubCategoriesPageGenerator(cat, recurse=0)
+        cat0 = []
+        for cat in categories:
+            cat0.append(cat.title())
+    if not jahies:
+        dicc[catnom] = {"art0":art0, "cat0":cat0}
+    art1 = set(art0)
+    cat1 = set(cat0)
+    if prof<=0:
+        print("Arribat al límit de profunditat")
+        return(art0, cat0, dicc, art1, cat1)
+    for cat in cat0:
+        art10,cat10,dicc,art11,cat11=miracat(cat, dicc=dicc, prof=prof-1)
+        art1 = art1.union(art11)
+        cat1 = cat1.union(cat11)
+    print("art0:", len(art0), "cat0:", len(cat0), "dicc:", len(dicc), "art1:", len(art1), "cat1", len(cat1), jahies, catnom)
+    return(art0, cat0, dicc, art1, cat1)
+    
 def posacat(cat, catsno=[], arts=[], site=pwb.Site('ca')):
     #print(cat)
+    if not(re.search("^[Cc]ategoria:", cat)):
+        print("Això no sembla una categoria:",cat)
+        return
     for art in arts:
         print(art)
         pag=pwb.Page(site, art)
@@ -137,8 +194,8 @@ def posacat(cat, catsno=[], arts=[], site=pwb.Site('ca')):
             print ("Categoria al principi")
             textnou = re.sub("\[\[[Cc]ategor(ia|y) ?:","[["+cat+"]]\n[[Categoria:", textvell, count=1)
         else:
-            print ("No trobat on posar la categoria")
-            continue
+            print ("No trobat on posar la categoria. Categoria al final.")
+            textnou = textvell + "\n[["+cat+"]]\n"
         if textnou != textvell and False: # anul·lat (només per proves)
             pagprova = pwb.Page(site, "Usuari:PereBot/taller")
             sumari = "Robot copia [["+art+"]] tot fent proves"
@@ -149,9 +206,9 @@ def posacat(cat, catsno=[], arts=[], site=pwb.Site('ca')):
                 if catno == cat:
                     print(catno, "redundant amb si mateixa")
                     continue
-                if re.search("\[\["+catno+"(\|.*)?\]\]", textnou):
+                if re.search("\[\["+re.escape(catno)+"(\|.*)?\]\]", textnou):
                     print("Traient", catno)
-                    textnou=re.sub("\[\["+catno+"\]\]\n?", "", textnou)
+                    textnou=re.sub("\[\["+re.escape(catno)+"\]\]\n?", "", textnou)
                     #textnou=re.sub("\[\["+catno+"\|.*\]\]", "", textnou)
                     sumtreu=" i treu la [["+catno+"]] redundant"
             sumari = "Robot posa la [["+cat+"]] a partir de Wikidata"+sumtreu
@@ -170,6 +227,8 @@ desa=True
 edita=True
 editacat=True
 creacat=False
+sub = 0
+nograns = False
 arguments = sys.argv[1:]
 if len(arguments)>0:
     if "-disc" in arguments:
@@ -192,6 +251,26 @@ if len(arguments)>0:
         creacat=True
         edita=False
         arguments.remove("-creacat")
+    if "-1" in arguments:
+        sub = 1
+        nograns = True
+        arguments.remove("-1")
+    if "-2" in arguments:
+        sub = 2
+        nograns = True
+        arguments.remove("-2")
+    if "-3" in arguments:
+        sub = 3
+        nograns = True
+        arguments.remove("-3")
+    if "-4" in arguments:
+        sub = 4
+        nograns = True
+        arguments.remove("-4")
+    if "-5" in arguments:
+        sub = 5
+        nograns = True
+        arguments.remove("-5")
     if "-max" in arguments:
         imax=arguments.index("-max")
         if len(arguments)>imax:
@@ -199,11 +278,17 @@ if len(arguments)>0:
         arguments.remove("-max")
     else:
         maxcats=4
-nomirar = carrega_no()
+if nograns:
+    nomirar = carrega_no()
+    print(nomirar)
+    qno = [x["lloc"]["value"].replace("http://www.wikidata.org/entity/","") for x in nomirar]
+    qno = qno + ["Q15348","Q249461"] #Barcelonès i Àmbit Metropolità
+else:
+    nomirar = []
+    qnor=[]
 #print (nomirar)
 catwd = carrega_catwd(disc=disc)
 #print(catwd)
-qno = [x["lloc"]["value"].replace("http://www.wikidata.org/entity/","") for x in nomirar]
 print ("Llocs grans a ignorar:", qno)
 print(len(qno))
 qllocs = [x["lloc"]["value"].replace("http://www.wikidata.org/entity/","") for x in catwd]
@@ -221,15 +306,32 @@ dcats = {x: dcats[x] for x in qsi}
 #print(dcats)
 print(len(dcats))
 ncats=len(dcats)
-midagrup = 25
+if sub == 0:
+    midagrup = 25
+else:
+    midagrup = 1
 qgrups = [qsi[x:x+midagrup] for x in range(0,len(qsi), midagrup)]
 #print(qgrups)
 print(len(qgrups))
 total=0
 icat=0
+diccat={}
 for qgrup in qgrups:
     print(qgrup)
-    nascutswd = get_nascutswd(qgrup) 
+    try:
+        nascutswd = get_nascutswd(qgrup, sub=sub) 
+    except OSError:
+        print("Error OSError (potser urllib.error.URLError) per", qgrup)
+        print("Ho deixem córrer i continuem")
+        continue
+    except urllib.error.HTTPError:
+        print("Error urllib.error.HTTPError per", qgrup)
+        print("Ho deixem córrer i continuem")
+        continue
+    except ValueError:
+        print("ValueError (que pot ser json.decoder.JSONDecodeError) per", qgrup)
+        print("Ho deixem córrer i continuem")
+        continue
     #print(nascutswd)
     total = total+len(nascutswd)
     print(len(nascutswd))
@@ -250,7 +352,7 @@ for qgrup in qgrups:
         if not(qlloc in nascutsllocwd):
             print("No cal buscar")
             continue
-        articles=artcat(cat)
+        art0, cat0, diccat, articles, cat1=miracat(cat, dicc=diccat, prof=15)
         #print(articles)
         print(len(articles))
         posar=set(nascutsllocwd[qlloc])-set(articles)
@@ -264,5 +366,6 @@ for qgrup in qgrups:
                 redundants.append(urllib.parse.unquote(red["categoria"]["value"].replace("https://ca.wikipedia.org/wiki/","")).replace("_"," "))
             print(redundants)
             posacat(cat, redundants, arts=posar)
+            diccat[cat]["art0"].extend(posar)
         
 print(total)
