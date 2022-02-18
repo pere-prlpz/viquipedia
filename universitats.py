@@ -114,6 +114,48 @@ def artcats(catnoms, desa=True, disc= False, site=pwb.Site('ca')):
             pickle.dump(dicc, open(fitxer, "wb")) 
     return(dicc)
 
+def miracat(catnom, site=pwb.Site('ca'), dicc={}, diccvell={}, vell=False, prof=20):
+    print(catnom, prof)
+    if catnom in dicc:
+        font = "dicc nou"
+        art0 = dicc[catnom]["art0"]
+        cat0 = dicc[catnom]["cat0"]
+    elif vell and catnom in diccvell:
+        font = "dicc vell"
+        art0 = diccvell[catnom]["art0"]
+        cat0 = diccvell[catnom]["cat0"]
+    else:
+        font = "llegit"
+        cat = pwb.Category(site,catnom)
+        articles = pagegenerators.CategorizedPageGenerator(cat, recurse=0)
+        art0 = []
+        for art in articles:
+            art0.append(art.title())
+        categories = pagegenerators.SubCategoriesPageGenerator(cat, recurse=0)
+        cat0 = []
+        for cat in categories:
+            cat0.append(cat.title())
+        dicc[catnom] = {"art0":art0, "cat0":cat0}
+        diccvell[catnom] = {"art0":art0, "cat0":cat0}
+    art1 = set(art0)
+    cat1 = set(cat0)
+    if prof<=0:
+        print("Arribat al límit de profunditat")
+        print("art0:", len(art0), "cat0:", len(cat0), "dicc:", len(dicc), "art1:", len(art1), "cat1", len(cat1), font, catnom)
+        return(art0, cat0, dicc, diccvell, art1, cat1)
+    for cat in cat0:
+        art10,cat10,dicc,diccvell,art11,cat11=miracat(cat, dicc=dicc, diccvell=diccvell, vell=vell, prof=prof-1)
+        art1 = art1.union(art11)
+        cat1 = cat1.union(cat11)
+    print("art0:", len(art0), "cat0:", len(cat0), "dicc:", len(dicc), "art1:", len(art1), "cat1", len(cat1), font, catnom)
+    return(art0, cat0, dicc, diccvell, art1, cat1)
+
+def desadicc(diccatvell):
+    fitxer = r"C:\Users\Pere\Documents\perebot\categories.pkl"
+    pickle.dump(diccatvell, open(fitxer, "wb")) 
+    print("Diccionari vell desat. Diccionari:",lencats,"Diccionari vell:", len(diccatvell))
+    return
+
 def posacat(cat, arts, site=pwb.Site('ca')):
     #print(cat)
     for art in arts:
@@ -315,23 +357,44 @@ if creacat:
     creacategories(qunino[1:(min(maxcats, len(qunino)))], editacat)
     exit(0)
 # A partir d'aquí només per omplir categories
-uniwp = artcats(list(unisi), disc=discvp, desa=True)
+try:
+    diccatvell=pickle.load(open(r"C:\Users\Pere\Documents\perebot\categories.pkl", "rb"))
+except FileNotFoundError:
+    print ("Fitxer de categories no trobat. Començant de nou.")
+    diccatvell={}
+diccat={}
+lencats = 0
+#uniwp = artcats(list(unisi), disc=discvp, desa=True)
 #print(uniwp[list(uniwp)[1]])
 total = 0
 tots= set([])
-# comptar:
-print ("Comptant articles:")
+icat = 0
+ncats = len(unisi)
 for cat in unisi:
-    print(cat)
-    posar = set(unisi[cat])-set(uniwp[cat])
-    print(len(posar))
-    total=total+len(posar)
-    #print(posar)
-    tots=tots|posar
+    print(icat,"/", ncats, cat)
+    art0, cat0, diccat, diccatvell, articles, cat1=miracat(cat, dicc=diccat, diccvell=diccatvell, vell=True, prof=5)
+    #print(articles)
+    print(len(articles))
+    posar = set(unisi[cat])-set(articles)
+    print("Posar (provisionalment):", posar, len(posar))
+    if len(diccat)>lencats:
+        lencats=len(diccat)
+        desadicc(diccatvell)
+    if len(posar)>0:
+        art0, cat0, diccat, diccatvell, articles, cat1=miracat(cat, dicc=diccat, diccvell=diccatvell, vell=False, prof=5)
+        #print(articles)
+        print(len(articles))
+        posar = set(unisi[cat])-set(articles)
+        print("Posar (definitivament):", posar, len(posar))
+        if len(diccat)>lencats:
+            lencats=len(diccat)
+            desadicc(diccatvell)
+        total=total+len(posar)
+        #print(posar)
+        tots=tots|posar
+        if edita:
+            posacat(cat, posar)
+            diccat[cat]["art0"].extend(posar)
+            diccatvell[cat]["art0"].extend(posar)        
 print("Total:",total)
 print("Diferents:", len(tots))
-if edita:
-    for cat in unisi:
-        print(cat)
-        posar = set(unisi[cat])-set(uniwp[cat])
-        posacat(cat, posar)

@@ -161,7 +161,54 @@ def posacat(cat, catsno=[], arts=[], site=pwb.Site('ca')):
                 continue
     return
 
+def miracat(catnom, site=pwb.Site('ca'), dicc={}, diccvell={}, vell=False, prof=20):
+    print(catnom, prof)
+    if catnom in dicc:
+        font = "dicc nou"
+        art0 = dicc[catnom]["art0"]
+        cat0 = dicc[catnom]["cat0"]
+    elif vell and catnom in diccvell:
+        font = "dicc vell"
+        art0 = diccvell[catnom]["art0"]
+        cat0 = diccvell[catnom]["cat0"]
+    else:
+        font = "llegit"
+        cat = pwb.Category(site,catnom)
+        articles = pagegenerators.CategorizedPageGenerator(cat, recurse=0)
+        art0 = []
+        for art in articles:
+            art0.append(art.title())
+        categories = pagegenerators.SubCategoriesPageGenerator(cat, recurse=0)
+        cat0 = []
+        for cat in categories:
+            cat0.append(cat.title())
+        dicc[catnom] = {"art0":art0, "cat0":cat0}
+        diccvell[catnom] = {"art0":art0, "cat0":cat0}
+    art1 = set(art0)
+    cat1 = set(cat0)
+    if prof<=0:
+        print("Arribat al límit de profunditat")
+        print("art0:", len(art0), "cat0:", len(cat0), "dicc:", len(dicc), "art1:", len(art1), "cat1", len(cat1), font, catnom)
+        return(art0, cat0, dicc, diccvell, art1, cat1)
+    for cat in cat0:
+        art10,cat10,dicc,diccvell,art11,cat11=miracat(cat, dicc=dicc, diccvell=diccvell, vell=vell, prof=prof-1)
+        art1 = art1.union(art11)
+        cat1 = cat1.union(cat11)
+    print("art0:", len(art0), "cat0:", len(cat0), "dicc:", len(dicc), "art1:", len(art1), "cat1", len(cat1), font, catnom)
+    return(art0, cat0, dicc, diccvell, art1, cat1)
+
+def desadicc(diccatvell):
+    fitxer = r"C:\Users\Pere\Documents\perebot\categories.pkl"
+    pickle.dump(diccatvell, open(fitxer, "wb")) 
+    print("Diccionari vell desat. Diccionari:",lencats,"Diccionari vell:", len(diccatvell))
+    return
+
 # el programa comença aquí
+try:
+    diccatvell=pickle.load(open(r"C:\Users\Pere\Documents\perebot\categories.pkl", "rb"))
+except FileNotFoundError:
+    print ("Fitxer de categories no trobat. Començant de nou.")
+    diccatvell={}
 notocar = ["Categoria:Grammy a l'àlbum de l'any", "Categoria:Pel·lícules guanyadores de l'Ós d'Or",
 "Categoria:BAFTA", "Categoria:Guanyadors del Globus d'Or al millor director",
 "Categoria:Guanyadors del Premi Booker", "Categoria:Premis Ramon Llull de novel·la",
@@ -172,10 +219,10 @@ notocarreg = "Categoria:(Jocs Olímpics|Festival|Foment|.*(premi Oscar|[Pp]el·l
 diccpral, diccprem = dicccategories()
 #print(diccpral)
 #print(diccprem)
-print("Diferència:", len(set(diccpral.keys())-set(diccprem.keys())))
+print("Diferència (categories principals usades per premiats):", len(set(diccpral.keys())-set(diccprem.keys())))
 qpremis = list(set(diccpral.keys()).union(set(diccprem.keys())))
 #print(qpremis) 
-print(len(qpremis))
+print("Premis a mirar:",len(qpremis))
 premiats = get_premiats()
 print("Premiats:", len(premiats))
 premisi, premino = classifica(premiats, qpremis)
@@ -208,6 +255,8 @@ if True: #edita or creacat:
     pag.put(textunino, "Robot actualitza premis sense categoria")
 total = len(premisi)
 icat=0
+diccat={}
+lencats = 0
 for premi in list(premisi.keys()):
     icat=icat+1
     print(icat,"/", total, premi)
@@ -227,13 +276,20 @@ for premi in list(premisi.keys()):
     if catposa in notocar or re.match(notocarreg, catposa):
         print("Categoria complicada. No faig res.")
         continue
-    articles=artcat(catposa)
+    art0, cat0, diccat, diccatvell, articles, cat1=miracat(catposa, dicc=diccat, diccvell=diccatvell, vell=True, prof=5)
     #print(articles)
     print("Categoria:",len(articles))
+    if len(diccat)>lencats:
+        lencats=len(diccat)
+        desadicc(diccatvell)
     posar=set(premisi[premi])-set(articles)
-    print("Posar:", posar, len(posar))
+    print("Posar (provisionalment):", posar, len(posar))
     if len(posar)>0:
+        art0, cat0, diccat, diccatvell, articles, cat1=miracat(catposa, dicc=diccat, diccvell=diccatvell, vell=False, prof=5)
+        posar=set(premisi[premi])-set(articles)
+        print("Posar (definitivament):", posar, len(posar))
+        if len(diccat)>lencats:
+            lencats=len(diccat)
+            desadicc(diccatvell)
         posacat(catposa, catred, arts=posar)
-
-
-    
+        

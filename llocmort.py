@@ -24,7 +24,12 @@ def get_results(endpoint_url, query):
     sparql = SPARQLWrapper(endpoint_url, agent=user_agent)
     sparql.setQuery(query)
     sparql.setReturnFormat(JSON)
-    return sparql.query().convert()
+    try:
+        return sparql.query().convert()
+    except ValueError:
+        print("Value error")
+        print("Retornem diccionari buit")
+        return {"results":{"bindings":{}}}
 
 def get_no(nomesestats=False, desa=True):
     print("Carregant articles i categories de Wikidata")
@@ -112,8 +117,12 @@ def get_mortssubwd(qllocs):
         ?article schema:isPartOf <https://ca.wikipedia.org/>.
     }"""
     endpoint_url = "https://query.wikidata.org/sparql"
-    results = get_results(endpoint_url, query)
-    wd = results["results"]["bindings"]
+    try:
+        results = get_results(endpoint_url, query)
+        wd = results["results"]["bindings"]
+    except ValueError:
+        print("ValueError detectat; tornem llista buida")
+        wd = []
     return (wd)
 
 def get_redundantswd(qllocs):
@@ -144,6 +153,48 @@ def artcat(catnom, site=pwb.Site('ca'), profunditat=8):
     for art in articles:
         llistart.append(art.title())
     return(llistart)
+
+def miracat(catnom, site=pwb.Site('ca'), dicc={}, diccvell={}, vell=False, prof=20):
+    print(catnom, prof)
+    if catnom in dicc:
+        font = "dicc nou"
+        art0 = dicc[catnom]["art0"]
+        cat0 = dicc[catnom]["cat0"]
+    elif vell and catnom in diccvell:
+        font = "dicc vell"
+        art0 = diccvell[catnom]["art0"]
+        cat0 = diccvell[catnom]["cat0"]
+    else:
+        font = "llegit"
+        cat = pwb.Category(site,catnom)
+        articles = pagegenerators.CategorizedPageGenerator(cat, recurse=0)
+        art0 = []
+        for art in articles:
+            art0.append(art.title())
+        categories = pagegenerators.SubCategoriesPageGenerator(cat, recurse=0)
+        cat0 = []
+        for cat in categories:
+            cat0.append(cat.title())
+        dicc[catnom] = {"art0":art0, "cat0":cat0}
+        diccvell[catnom] = {"art0":art0, "cat0":cat0}
+    art1 = set(art0)
+    cat1 = set(cat0)
+    if prof<=0:
+        print("Arribat al límit de profunditat")
+        print("art0:", len(art0), "cat0:", len(cat0), "dicc:", len(dicc), "art1:", len(art1), "cat1", len(cat1), font, catnom)
+        return(art0, cat0, dicc, diccvell, art1, cat1)
+    for cat in cat0:
+        art10,cat10,dicc,diccvell,art11,cat11=miracat(cat, dicc=dicc, diccvell=diccvell, vell=vell, prof=prof-1)
+        art1 = art1.union(art11)
+        cat1 = cat1.union(cat11)
+    print("art0:", len(art0), "cat0:", len(cat0), "dicc:", len(dicc), "art1:", len(art1), "cat1", len(cat1), font, catnom)
+    return(art0, cat0, dicc, diccvell, art1, cat1)
+
+def desadicc(diccatvell):
+    fitxer = r"C:\Users\Pere\Documents\perebot\categories.pkl"
+    pickle.dump(diccatvell, open(fitxer, "wb")) 
+    print("Diccionari vell desat. Diccionari:",lencats,"Diccionari vell:", len(diccatvell))
+    return
 
 def posacat(cat, catsno=[], arts=[], site=pwb.Site('ca')):
     #print(cat)
@@ -198,6 +249,7 @@ def posacat(cat, catsno=[], arts=[], site=pwb.Site('ca')):
 sub=False
 tot=False
 noestats=False
+grans=False
 disc=False
 discvp=False
 desa=True
@@ -218,6 +270,10 @@ if len(arguments)>0:
         sub=True
         noestats=True
         arguments.remove("-noestats")
+    if "-grans" in arguments:
+        sub=True
+        grans=True
+        arguments.remove("-grans")
     if "-disc" in arguments:
         disc=True
         arguments.remove("-disc")
@@ -245,9 +301,18 @@ if len(arguments)>0:
         arguments.remove("-max")
     else:
         maxcats=4
+try:
+    diccatvell=pickle.load(open(r"C:\Users\Pere\Documents\perebot\categories.pkl", "rb"))
+except FileNotFoundError:
+    print ("Fitxer de categories no trobat. Començant de nou.")
+    diccatvell={}
 catwd = carrega_catwd(disc=disc)
 #print(catwd)
-if not tot: #ignorar els grans
+if grans:
+    simirar = get_no(desa=False, nomesestats=False)
+    qsimirar = [x["lloc"]["value"].replace("http://www.wikidata.org/entity/","") for x in simirar]
+    qno = []
+elif not tot: #ignorar els grans
     nomirar = get_no(desa=False, nomesestats=noestats)
     #print (nomirar)
     qno = [x["lloc"]["value"].replace("http://www.wikidata.org/entity/","") for x in nomirar]
@@ -255,8 +320,11 @@ else:
     qno = []
 print ("Llocs grans a ignorar:", qno)
 print(len(qno))
-qllocs = [x["lloc"]["value"].replace("http://www.wikidata.org/entity/","") for x in catwd]
-#print (qllocs)
+if not grans:
+    qllocs = [x["lloc"]["value"].replace("http://www.wikidata.org/entity/","") for x in catwd]
+    #print (qllocs)
+else:
+    qllocs = qsimirar
 print(len(qllocs))
 qsi = list(set(qllocs)-set(qno))
 #print(qsi)
@@ -279,12 +347,31 @@ qgrups = [qsi[x:x+midagrup] for x in range(0,len(qsi), midagrup)]
 print(len(qgrups))
 total=0
 icat=0
+diccat={}
+lencats = 0
 for qgrup in qgrups:
     print(qgrup)
-    if sub:
-        mortswd = get_mortssubwd(qgrup) 
-    else:
-        mortswd = get_mortswd(qgrup) 
+    try:
+        if sub:
+            mortswd = get_mortssubwd(qgrup) 
+        else:
+            mortswd = get_mortswd(qgrup)
+    except ValueError:
+        print("ValueError (que pot ser json.decoder.JSONDecodeError) per", qgrup)
+        print("Ho deixem córrer i continuem")
+        continue
+    except OSError:
+        print("Error OSError (potser urllib.error.URLError) per", qgrup)
+        print("Ho deixem córrer i continuem")
+        continue
+    except urllib.error.HTTPError:
+        print("Error urllib.error.HTTPError per", qgrup)
+        print("Ho deixem córrer i continuem")
+        continue
+    except http.client.IncompleteRead:
+        print("Error http.client.IncompleteRead per", qgrup)
+        print("Ho deixem córrer i continuem")
+        continue       
     #print(mortswd)
     total = total+len(mortswd)
     print(len(mortswd))
@@ -308,19 +395,28 @@ for qgrup in qgrups:
         if not(qlloc in nascutsllocwd):# and not(sub):
             print("No cal buscar")
             continue
-        articles=artcat(cat)
+        art0, cat0, diccat, diccatvell, articles, cat1=miracat(cat, dicc=diccat, diccvell=diccatvell, vell=True, prof=14)
         #print(articles)
         print(len(articles))
         posar=set(nascutsllocwd[qlloc])-set(articles)
-        print("Posar:", posar, len(posar))
+        print("Posar (provisionalment):", posar, len(posar))
         if len(posar)>0:
-            redundantswd = get_redundantswd([qlloc])
-            #print(redundantswd)
-            redundants = []
-            for red in redundantswd:
-                #print(red)
-                redundants.append(urllib.parse.unquote(red["categoria"]["value"].replace("https://ca.wikipedia.org/wiki/","")).replace("_"," "))
-            print(redundants)
-            posacat(cat, redundants, arts=posar)
-        
+            art0, cat0, diccat, diccatvell, articles, cat1=miracat(cat, dicc=diccat, diccvell=diccatvell, vell=False, prof=14)
+            print(len(articles))
+            posar=set(nascutsllocwd[qlloc])-set(articles)
+            print("Posar (definitivament):", posar, len(posar))
+            if len(diccat)>lencats:
+                lencats=len(diccat)
+                desadicc(diccatvell)
+            if len(posar)>0:
+                redundantswd = get_redundantswd([qlloc])
+                #print(redundantswd)
+                redundants = []
+                for red in redundantswd:
+                    #print(red)
+                    redundants.append(urllib.parse.unquote(red["categoria"]["value"].replace("https://ca.wikipedia.org/wiki/","")).replace("_"," "))
+                print(redundants)
+                posacat(cat, redundants, arts=posar)
+                diccat[cat]["art0"].extend(posar)
+                diccatvell[cat]["art0"].extend(posar)        
 print(total)

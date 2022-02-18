@@ -342,6 +342,7 @@ for qgrup in qgrups:
     except ValueError:
         print("ValueError (que pot ser json.decoder.JSONDecodeError) per", qgrup)
         print("Ho deixem córrer i continuem")
+        continue
     except OSError:
         print("Error OSError (potser urllib.error.URLError) per", qgrup)
         print("Ho deixem córrer i continuem")
@@ -349,7 +350,6 @@ for qgrup in qgrups:
     except urllib.error.HTTPError:
         print("Error urllib.error.HTTPError per", qgrup)
         print("Ho deixem córrer i continuem")
-        continue
         continue
     #print(nascutswd)
     total = total+len(nascutswd)
