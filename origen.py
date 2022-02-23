@@ -138,8 +138,12 @@ def artcat(catnom, site=pwb.Site('ca'), profunditat=8):
         llistart.append(art.title())
     return(llistart)
 
-def miracat(catnom, site=pwb.Site('ca'), dicc={}, diccvell={}, vell=False, prof=20):
-    print(catnom, prof)
+def miracat(catnom, site=pwb.Site('ca'), dicc={}, diccvell={}, vell=False, prof=20, noseg=[], noinc=[], verbose="nou"):
+    # noseg: categories que llegeix però no continua més avall
+    # noinc: categories que no llegeix
+    # verbose: sí, nou, tot
+    if verbose=="sí":
+        print(catnom, prof)
     if catnom in dicc:
         font = "dicc nou"
         art0 = dicc[catnom]["art0"]
@@ -164,14 +168,22 @@ def miracat(catnom, site=pwb.Site('ca'), dicc={}, diccvell={}, vell=False, prof=
     art1 = set(art0)
     cat1 = set(cat0)
     if prof<=0:
-        print("Arribat al límit de profunditat")
-        print("art0:", len(art0), "cat0:", len(cat0), "dicc:", len(dicc), "art1:", len(art1), "cat1", len(cat1), font, catnom)
+        if verbose == "sí":
+            print("Arribat al límit de profunditat")
+            print("art0:", len(art0), "cat0:", len(cat0), "dicc:", len(dicc), "art1:", len(art1), "cat1", len(cat1), font, catnom)
         return(art0, cat0, dicc, diccvell, art1, cat1)
     for cat in cat0:
-        art10,cat10,dicc,diccvell,art11,cat11=miracat(cat, dicc=dicc, diccvell=diccvell, vell=vell, prof=prof-1)
+        if cat in noinc:
+            continue
+        if cat in noseg:
+            profseguent = 0
+        else:
+            profseguent = prof-1
+        art10,cat10,dicc,diccvell,art11,cat11=miracat(cat, dicc=dicc, diccvell=diccvell, vell=vell, prof=profseguent, noseg=noseg, noinc=noinc)
         art1 = art1.union(art11)
         cat1 = cat1.union(cat11)
-    print("art0:", len(art0), "cat0:", len(cat0), "dicc:", len(dicc), "art1:", len(art1), "cat1", len(cat1), font, catnom)
+    if verbose=="sí" or (verbose=="nou" and font=="llegit"):
+        print(prof, "art0:", len(art0), "cat0:", len(cat0), "dicc:", len(dicc), "art1:", len(art1), "cat1", len(cat1), font, catnom)
     return(art0, cat0, dicc, diccvell, art1, cat1)
     
 def posacat(cat, catsno=[], arts=[], site=pwb.Site('ca')):
@@ -225,11 +237,26 @@ def posacat(cat, catsno=[], arts=[], site=pwb.Site('ca')):
                 continue
     return
 
-def desadicc(diccatvell):
-    fitxer = r"C:\Users\Pere\Documents\perebot\categories.pkl"
-    pickle.dump(diccatvell, open(fitxer, "wb")) 
-    print("Diccionari vell desat. Diccionari:",lencats,"Diccionari vell:", len(diccatvell))
-    return
+def desadicc(diccatvell, diccatnou=[1], lendic=0):
+    if len(diccatnou)>lendic:
+        fitxer = r"C:\Users\Pere\Documents\perebot\categories.pkl"
+        pickle.dump(diccatvell, open(fitxer, "wb")) 
+        lennou = len(diccatnou)
+        print("Diccionari vell desat. Diccionari:",lennou,"Diccionari vell:", len(diccatvell))
+        return (lennou)
+    else:
+        return(lendic)
+
+def inicialitzadicc():
+    # carregar fitxer de categories
+    try:
+        diccatvell=pickle.load(open(r"C:\Users\Pere\Documents\perebot\categories.pkl", "rb"))
+    except FileNotFoundError:
+        print ("Fitxer de categories no trobat. Començant de nou.")
+        diccatvell={}
+    diccat = {}
+    lencats = 0
+    return(diccat, diccatvell, lencats)
 
 
 # el programa comença aquí
@@ -239,8 +266,9 @@ desa=True
 edita=True
 editacat=True
 creacat=False
-sub = 0
-nograns = False
+sub = 4
+nograns = True
+ordena = True
 arguments = sys.argv[1:]
 if len(arguments)>0:
     if "-disc" in arguments:
@@ -263,6 +291,10 @@ if len(arguments)>0:
         creacat=True
         edita=False
         arguments.remove("-creacat")
+    if "-0" in arguments:
+        sub = 0
+        nograns = False
+        arguments.remove("-0")
     if "-1" in arguments:
         sub = 1
         nograns = True
@@ -283,7 +315,7 @@ if len(arguments)>0:
         sub = 5
         nograns = True
         arguments.remove("-5")
-    if "-max" in arguments:
+    if "-max" in arguments:  # no implementat?
         imax=arguments.index("-max")
         if len(arguments)>imax:
             maxcats=int(arguments.pop(imax+1))
@@ -300,13 +332,9 @@ else:
     nomirar = []
     qno=[]
 print ("No mirar:", qno)
-try:
-    diccatvell=pickle.load(open(r"C:\Users\Pere\Documents\perebot\categories.pkl", "rb"))
-except FileNotFoundError:
-    print ("Fitxer de categories no trobat. Començant de nou.")
-    diccatvell={}
+diccat, diccatvell, lencats = inicialitzadicc()
 catwd = carrega_catwd(disc=disc)
-#print(catwd)
+#print("catwd:",catwd)
 print ("Llocs grans a ignorar:", qno)
 print(len(qno))
 qllocs = [x["lloc"]["value"].replace("http://www.wikidata.org/entity/","") for x in catwd]
@@ -321,9 +349,24 @@ for x in catwd}
 #print(dcats)
 print(len(dcats))
 dcats = {x: dcats[x] for x in qsi}
-#print(dcats)
+#print("dcats:",dcats)
 print(len(dcats))
 ncats=len(dcats)
+if ordena:
+    print("Carregant categories per ordenar")
+    dicmida = {}
+    for qlloc in qsi:
+        art0, cat0, diccat, diccatvell, art1, cat1=miracat(dcats[qlloc], dicc=diccat, diccvell=diccatvell, vell=True, prof=10)
+        dicmida[qlloc]=len(cat1)
+    print("Categories carregades per poder ordenar.")
+    desadicc(diccatvell, diccat, lencats)
+    print("Ordenant")
+    qsi = sorted(dicmida, key=dicmida.get)
+    #print("qsi:", qsi, len(qsi)) #
+    #for x in qsi: print(x, dcats[x]) #
+n = len(qsi)
+i=0
+qgrups = []
 if sub == 0:
     midagrup = 25
 else:
@@ -333,8 +376,6 @@ qgrups = [qsi[x:x+midagrup] for x in range(0,len(qsi), midagrup)]
 print(len(qgrups))
 total=0
 icat=0
-diccat={}
-lencats = 0
 for qgrup in qgrups:
     print(qgrup)
     try:
@@ -384,9 +425,7 @@ for qgrup in qgrups:
             print(len(articles))
             posar=set(nascutsllocwd[qlloc])-set(articles)
             print("Posar (definitivament):", posar, len(posar))
-            if len(diccat)>lencats:
-                lencats=len(diccat)
-                desadicc(diccatvell)
+            desadicc(diccatvell, diccat, lencats)
             if len(posar)>0:
                 redundantswd = get_redundantswd([qlloc])
                 #print(redundantswd)
