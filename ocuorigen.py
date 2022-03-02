@@ -173,7 +173,7 @@ ordena3 = True # ordenar tenint en compte categories pares
 ocupawd = get_query("""# Categories d'ocupacions
 SELECT DISTINCT ?ocupacio ?ocupacioLabel ?cat ?categoria ?conte ?conteLabel
 WHERE {
-  ?ocupacio wdt:P31 wd:Q28640.
+  ?ocupacio wdt:P31/wdt:P279* wd:Q28640.
   ?ocupacio wdt:P910 ?cat.
     ?categoria schema:about ?cat.
     ?categoria schema:isPartOf <https://ca.wikipedia.org/>.
@@ -332,13 +332,16 @@ i = 0
 for cat in catsllococu:
     i = i+1
     print (i,"/",n,cat)
-    if False and re.search("catalans del sud|històrics|contemporanis|nord-catalans|catalans del nord", cat.casefold()): #restricció eliminada
-        print("Descartada",cat)
-        continue
+    # if re.search("catalans del sud|històrics|contemporanis|nord-catalans|catalans del nord", cat.casefold()):
+        # print("Descartada",cat)
+        # continue
     if re.search("(emperadors( romans)?|rei(ne)?s|prínceps|governants|presidents|caps d'estat|(grans )?ducs|(primers )?ministres|(arque)?bisbes|patriarques) d", cat.casefold()):
         print("Descartada",cat)
         continue
-    if re.search("(reis|emperadors|virreis) ", cat.casefold()):
+    if re.search("(reis|emperadors|virreis|bisbes) ", cat.casefold()):
+        print("Descartada",cat)
+        continue
+    if re.search("grups humans", cat.casefold()):
         print("Descartada",cat)
         continue
     if re.search("espanyols", cat.casefold()):
