@@ -327,7 +327,7 @@ if nograns:
     #print(nomirar)
     #qno = [x["lloc"]["value"].replace("http://www.wikidata.org/entity/","") for x in nomirar]
     #qno = qno + ["Q15348","Q249461"] #Barcelonès i Àmbit Metropolità
-    qno = ["Q29", "Q142", "Q15180", "Q28513", "Q16957", "Q33946", "Q12560", "Q12544", "Q15348","Q249461"]
+    qno = ["Q29", "Q142", "Q15180", "Q28513", "Q16957", "Q33946", "Q12560", "Q12544", "Q15348","Q249461","Q15580"]
 else:
     nomirar = []
     qno=[]

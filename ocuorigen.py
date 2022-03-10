@@ -8,6 +8,7 @@ from SPARQLWrapper import SPARQLWrapper, JSON
 import re
 import pickle
 import sys
+import time
 import urllib
 import urllib.request
 #import json
@@ -87,6 +88,26 @@ def miracat(catnom, site=pwb.Site('ca'), dicc={}, diccvell={}, vell=False, prof=
     if verbose=="sí" or (verbose=="nou" and font=="llegit"):
         print(prof, "art0:", len(art0), "cat0:", len(cat0), "dicc:", len(dicc), "art1:", len(art1), "cat1", len(cat1), font, catnom)
     return(art0, cat0, dicc, diccvell, art1, cat1)
+    
+def catmaj(x):
+    # Endreça el nom d'una categoria
+    if ":" in x:
+        nom=re.split(":", x)[1]
+    else:
+        nom=x
+    nom=nom.strip()
+    nom=re.sub("  "," ", nom)
+    nom=nom[0].upper()+nom[1:]
+    return ("Categoria:"+nom)
+
+def minuscula(x):
+    return (x[0].lower()+x[1:])
+
+def imprimeix(text, file=r"C:\Users\Pere\Documents\perebot\informe_ocuorigen.txt"):
+    with open(file, "a", encoding="utf-8") as f:
+        f.write(text+"\n")
+        f.close()
+    return
     
 def desadicc(diccatvell, diccatnou=[1], lendic=0):
     if len(diccatnou)>lendic:
@@ -168,6 +189,8 @@ def posacat(cat, catsno=[], arts=[], site=pwb.Site('ca'), extrasumari=""):
 # el programa comença aquí ----------------------------------------
 ordena = True # ordenar categories per mida
 ordena3 = True # ordenar tenint en compte categories pares
+imprimeix(time.asctime(time.localtime(time.time())))
+site=pwb.Site('ca')
 
 # llegir dades de Wikidata
 ocupawd = get_query("""# Categories d'ocupacions
@@ -190,6 +213,31 @@ dcatocu = {urllib.parse.unquote(x["categoria"]["value"].replace("https://ca.wiki
 x["ocupacio"]["value"].replace("http://www.wikidata.org/entity/","")\
 for x in ocupawd}
 print("dcatocu",len(dcatocu))
+
+idpwd = get_query("""# Categories d'identitats personals
+SELECT DISTINCT ?ocupacio ?ocupacioLabel ?cat ?categoria ?conte ?conteLabel
+WHERE {
+  ?ocupacio wdt:P31/wdt:279* wd:Q844569.
+  ?ocupacio wdt:P910 ?cat.
+    ?categoria schema:about ?cat.
+    ?categoria schema:isPartOf <https://ca.wikipedia.org/>.
+  OPTIONAL{?cat wdt:P4224 ?conte}
+  SERVICE wikibase:label {bd:serviceParam wikibase:language "ca" . } 
+}""")
+#print(idpwd)
+didpcat = {x["ocupacio"]["value"].replace("http://www.wikidata.org/entity/",""):\
+urllib.parse.unquote(x["categoria"]["value"].replace("https://ca.wikipedia.org/wiki/","")).replace("_"," ")\
+for x in idpwd}
+#print(didpcat)
+print("didpcat",len(didpcat))
+dcatidp = {urllib.parse.unquote(x["categoria"]["value"].replace("https://ca.wikipedia.org/wiki/","")).replace("_"," "):\
+x["ocupacio"]["value"].replace("http://www.wikidata.org/entity/","")\
+for x in idpwd}
+print("dcatidp",len(dcatidp))
+dcatocu.update(dcatidp)
+print("dcatocu",len(dcatocu)) # afegeix identitats personals a les ocupacions
+
+
 
 llocswd = get_query("""# categories persones per lloc
 SELECT DISTINCT ?lloc ?cat ?categoria
@@ -245,6 +293,9 @@ for cat in dcatrel:
 #print(dintercat, len(dintercat))
 #for cat in dintercat: print(cat, dintercat[cat]["cocu"], dintercat[cat]["clloc"])
 print("dintercat", len(dintercat))
+sintercat = {(x, tuple(sorted((dintercat[x]["cocu"], dintercat[x]["clloc"])))) for x in dintercat}
+print(list(sintercat)[0:6])
+print("sintercat:", len(sintercat))
 
 cat1perswd = get_query("""# categories principals d'una persona
 SELECT ?item ?cat ?categoria WHERE {
@@ -255,7 +306,7 @@ SELECT ?item ?cat ?categoria WHERE {
 }""")
 cat1pers = [urllib.parse.unquote(x["categoria"]["value"].replace("https://ca.wikipedia.org/wiki/","")).replace("_"," ")\
 for x in cat1perswd]
-print(cat1pers)
+#print(cat1pers)
 print("cat1pers", len(cat1pers))
 
 # carregar fitxer de categories
@@ -274,35 +325,92 @@ for catlloc in list(dcatlloc):
         proposta = catocu+" "+gentilici
         #print(proposta)
         if proposta in diccatvell:
-            print(proposta, "EXISTEIX LA CATEGORIA")
+            #print(proposta, "EXISTEIX LA CATEGORIA")
             ntrobats = ntrobats + 1
             #print(ntrobats, dcatlloc[catlloc], dcatocu[catocu])
             dcatinternom[proposta]=[catlloc, catocu]
-catsllococu = set(dintercat.keys()) | set(dcatinternom.keys())
-print("dintercat:", len(dintercat), "categories trobades a Wikidata")
 print("dcatinternom:", len(dcatinternom), "categories trobades pel nom")
-print("catsllococu:", len(catsllococu), "categories en total")
+scatinternom = {(x, tuple(sorted((dcatinternom[x][0], dcatinternom[x][1])))) for x in dcatinternom}
+print(list(scatinternom)[0:6])
+print("scatinternom:", len(scatinternom))
+
+# busquem a les categories per grup humà
+art0, cat0, diccat, diccatvell, art1, cgrups=miracat("Categoria:Biografies per grup humà", dicc=diccat, diccvell=diccatvell, vell=True, prof=10, noseg=cat1pers)
+tgrups = []
+print("grups com a lloc")
+for cat in cgrups:
+    for subcat in cgrups:
+        if cat==subcat:
+            continue
+        if " per " in subcat:
+            continue
+        gentilici = re.sub("Categoria:", "", cat)
+        if re.search(gentilici, subcat) or re.search(gentilici.casefold(),subcat):
+            queda=re.sub(gentilici,"",subcat).strip()
+            queda=re.sub(gentilici.casefold(),"",queda)
+            #queda=re.sub("  "," ", queda)
+            #queda=re.sub(": ",":", queda)
+            queda=catmaj(queda)
+            print(subcat,"=", cat, "+", queda, queda in diccatvell)
+            if queda in diccatvell:
+                tgrups.append((subcat, tuple(sorted((cat, queda)))))
+#print(tgrups)
+print("tgrups:",len(tgrups))
+
+# busquem categories per tros del nom
+catsmirar = [("Flamencs (persones)", ("flamencs")), 
+             ("Catalans del sud contemporanis", ("contemporanis", "contemporànies", "catalans del sud")),
+             ("Valencians contemporanis", ("contemporanis", "contemporànies")),
+             ("Balears contemporanis", ("contemporanis", "contemporànies")),
+             ("Rossellonesos contemporanis", ("contemporanis", "contemporànies")),
+             ("Barcelonins contemporanis", ("contemporanis", "contemporànies")),
+             ("Catalans històrics", ("històrics", "històriques")),
+             ("Balears històrics", ("històrics", "històriques")),
+             ("Valencians històrics", ("històrics", "històriques")),
+             ("Rossellonesos històrics", ("històrics", "històriques")),
+             ("Barcelonins històrics", ("històrics", "històriques")),
+            ]
+tgrups1 = []
+for tcat in catsmirar:
+    nom1 = minuscula(tcat[0])
+    if type(tcat[1]) is tuple:
+        noms = (nom1,) + tcat[1]
+    else:
+        noms = (nom1, tcat[1])
+    print(noms)
+    catsup = "Categoria:"+tcat[0]
+    art0, cat0, diccat, diccatvell, art1, cat1=miracat(catsup, dicc=diccat, diccvell=diccatvell, vell=True, prof=10, noseg=cat1pers)
+    for nomsup in noms:
+        for subcat in cat1:
+            if " per " in cat1:
+                continue
+            if re.search(nomsup, subcat):
+                queda = re.sub(nomsup, "", subcat)
+                queda = re.sub("  "," ", queda).strip()
+                #print(nomsup, subcat, queda)
+                if queda in diccatvell:
+                    tgrups1.append((subcat, tuple(sorted((catsup, queda)))))
+print("tgrups1:",len(tgrups1))
+
+# ajuntem
+scats = sintercat | scatinternom | set(tgrups) | set(tgrups1)
+print("scats:", len(scats))
 
 # ordenem categories per nombre de subcategories
 if ordena:
     print("Carregant categories per ordenar")
     dicmida = {}
     dicmida0 = {}
-    n=len(catsllococu)
+    n=len(scats)
     i=0
-    for cat in catsllococu:
+    for tcat in scats:
+        cat = tcat[0]
         i=i+1
         art0, cat0, diccat, diccatvell, art1, cat1=miracat(cat, dicc=diccat, diccvell=diccatvell, vell=True, prof=10)
         mida = len(cat1)
         if ordena3:
-            if cat in dintercat:
-                catA= dintercat[cat]["cocu"]
-                catB= dintercat[cat]["clloc"]   
-            elif cat in dcatinternom:
-                catA = dcatinternom[cat][0]
-                catB = dcatinternom[cat][1]
-            else:
-                print("Error? La categoria",cat,"no surt ni per Wikidata ni per nom")
+            catA=tcat[1][0]
+            catB=tcat[1][1]
             if catA in dicmida0:
                 midaA = dicmida0[catA]
             else:
@@ -315,48 +423,50 @@ if ordena:
                 art0, cat0, diccat, diccatvell, art1, cat1=miracat(catB, dicc=diccat, diccvell=diccatvell, vell=True, prof=10)
                 midaB = len(cat1)
                 dicmida0[catB] = midaB
-        dicmida[cat]=mida+midaA+midaB
-        print(i,"/",n, cat, dicmida[cat], mida, midaA, midaB)
+            dicmida[tcat]=mida+midaA+midaB
+            print(i,"/",n, cat, dicmida[tcat], mida, midaA, midaB)
     print("Categories carregades per poder ordenar.")
     lencats=desadicc(diccatvell, diccat, lencats)
     print("Ordenant")
     catsllococu = sorted(dicmida, key=dicmida.get)
     print("catsllococu:", len(catsllococu)) #
+    i = 0
+    n = len(catsllococu)
     for cat in catsllococu:
-        print(cat,dicmida[cat])
+        i=i+1
+        print(i, "/", n, cat,dicmida[cat])
     #print(catsllococu)
 
 # Comencem a buscar i posar categories
 n = len(catsllococu)
 i = 0
-for cat in catsllococu:
+for tcat in catsllococu:
     i = i+1
-    print (i,"/",n,cat)
+    cat = tcat[0]
+    print (i,"/",n,tcat)
+    if " per " in cat:
+        print("Descartada", cat)
+        continue
     # if re.search("catalans del sud|històrics|contemporanis|nord-catalans|catalans del nord", cat.casefold()):
         # print("Descartada",cat)
         # continue
-    if re.search("(emperadors( romans)?|rei(ne)?s|prínceps|governants|presidents|caps d'estat|(grans )?ducs|(primers )?ministres|(arque)?bisbes|patriarques) d", cat.casefold()):
+    if re.search("(emperadors( romans)?|rei(ne)?s|prínceps|governants|presidents|caps d'estat|(grans )?ducs|(primers )?ministres|(arque)?bisbes|patriarques|governadors) d", cat.casefold()):
         print("Descartada",cat)
         continue
-    if re.search("(reis|emperadors|virreis|bisbes) ", cat.casefold()):
+    if re.search("(reis|emperadors|virreis|bisbes|cabdills) ", cat.casefold()):
         print("Descartada",cat)
         continue
-    if re.search("grups humans", cat.casefold()):
+    if re.search("grups humans|guerra mundial", cat.casefold()):
         print("Descartada",cat)
         continue
-    if re.search("espanyols", cat.casefold()):
+    if re.search("jocs olímpics", cat.casefold()) and not re.search("catalans|valencians|balears",cat.casefold()):
+        print("Descartada per ser ambigu que sigui una categoria per origen",cat)
+        continue
+    if re.search("espanyols|francesos", cat.casefold()):
         print("Descartada provisionalment",cat)
         continue
-    if cat in dintercat:
-        catA= dintercat[cat]["cocu"]
-        catB= dintercat[cat]["clloc"]   
-        print("Intersecant:",catA, catB, "d'acord amb Wikidata")
-    elif cat in dcatinternom:
-        catA = dcatinternom[cat][0]
-        catB = dcatinternom[cat][1]
-        print("Intersecant:",catA, catB, "d'acord amb el nom de la categoria")
-    else:
-        print("Error? La categoria no surt ni per Wikidata ni per nom")
+    catA=tcat[1][0]
+    catB=tcat[1][1]
     art0, cat0, diccat, diccatvell, articles, cat1=miracat(cat, dicc=diccat, diccvell=diccatvell, vell=True, prof=14, noseg=cat1pers)
     lencats=desadicc(diccatvell, diccat, lencats)
     art0, cat0, diccat, diccatvell, articlesA, cat1A=miracat(catA, dicc=diccat, diccvell=diccatvell, vell=True, prof=14, noinc=cat1pers)
@@ -366,7 +476,24 @@ for cat in catsllococu:
     posar = (articlesA & articlesB) - articles
     print("Posar provisionalment:", posar, len(posar))
     if not (cat in (cat1A & cat1B)):
-        print("Categoria",cat, "no és a la intersecció entre", catA,"i",catB)
+        missatge = cat+" no és a la intersecció entre "+catA+" ("+str(cat in cat1A)+") i "+catB+" ("+str(cat in cat1B)+")"
+        print(missatge)
+        imprimeix(missatge)
+        existeix = True
+        try:
+            text0=pwb.Page(site, cat).get()
+        except pwb.IsRedirectPage:
+            print("Redirecció:", cat)
+            existeix=False
+        except pwb.NoPage:
+            existeix=False
+            print("La categoria no existeix:", cat)
+        if existeix:
+            missatge = cat + " SÍ que existeix"
+        else:
+            missatge = cat + " NO existeix"
+        print(missatge)
+        imprimeix(missatge)
         print("Deixem córrer la categoria")
         continue
     if len(posar)>0:
