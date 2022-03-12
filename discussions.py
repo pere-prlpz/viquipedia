@@ -69,7 +69,7 @@ for urlweb in pagweb:
                 linia=linia+u"{{"+tit+u"}}\n\n"
                 try:
                         text=pag.get()
-                except pywikibot.IsRedirectPage:
+                except pywikibot.exceptions.IsRedirectPageError:
                         linia=u"*[[{}]] (redirecció)\n".format(tit)
                         informeno=informeno+linia
                         continue
