@@ -41,12 +41,14 @@ def miracatinv(cat, dicc, prof=20, noinc=[]):
         #print("Lliures:", lliures)
     return(super) 
 
-def miracat(catnom, site=pwb.Site('ca'), dicc={}, diccvell={}, vell=False, prof=20, noseg=[], noinc=[], verbose="nou"):
+def miracat(catnom, site=pwb.Site('ca'), dicc={}, diccvell={}, vell=False, prof=20, 
+            noseg=[], noinc=[], noincregex="", verbose="nou"):
     # noseg: categories que llegeix però no continua més avall
     # noinc: categories que no llegeix
     # verbose: sí, nou, tot
     if verbose=="sí":
         print(catnom, prof)
+    noincreg = (len(noincregex)>0)
     if catnom in dicc:
         font = "dicc nou"
         art0 = dicc[catnom]["art0"]
@@ -78,11 +80,17 @@ def miracat(catnom, site=pwb.Site('ca'), dicc={}, diccvell={}, vell=False, prof=
     for cat in cat0:
         if cat in noinc:
             continue
+        if noincreg and re.search(noincregex, cat):
+            # print("No passa:",cat)
+            continue
+        # else:
+            # print("Passa:",cat)
         if cat in noseg:
             profseguent = 0
         else:
             profseguent = prof-1
-        art10,cat10,dicc,diccvell,art11,cat11=miracat(cat, dicc=dicc, diccvell=diccvell, vell=vell, prof=profseguent, noseg=noseg, noinc=noinc)
+        art10,cat10,dicc,diccvell,art11,cat11=miracat(cat, dicc=dicc, diccvell=diccvell, vell=vell, prof=profseguent, 
+                                                      noseg=noseg, noinc=noinc, noincregex=noincregex)
         art1 = art1.union(art11)
         cat1 = cat1.union(cat11)
     if verbose=="sí" or (verbose=="nou" and font=="llegit"):
@@ -180,7 +188,7 @@ def posacat(cat, catsno=[], arts=[], site=pwb.Site('ca'), extrasumari=""):
             sumari = "Robot posa la [["+cat+"]] "+extrasumari+sumtreu
             try:
                 pag.put(textnou, sumari)
-            except pwb.LockedPage:
+            except pwb.exceptions.LockedPageError:
                 print ("Pàgina protegida")
                 continue
     return
@@ -189,8 +197,19 @@ def posacat(cat, catsno=[], arts=[], site=pwb.Site('ca'), extrasumari=""):
 # el programa comença aquí ----------------------------------------
 ordena = True # ordenar categories per mida
 ordena3 = True # ordenar tenint en compte categories pares
-imprimeix(time.asctime(time.localtime(time.time())))
+imprimeix("\n"+time.asctime(time.localtime(time.time())))
 site=pwb.Site('ca')
+actualitza = False
+actualitzatot = False
+arguments = sys.argv[1:]
+if len(arguments)>0:
+    if "-act" in arguments:
+        actualitza=True
+        arguments.remove("-act")
+    if "-acttot" in arguments:
+        actualitza=True
+        actualitzatot=True
+        arguments.remove("-act")
 
 # llegir dades de Wikidata
 ocupawd = get_query("""# Categories d'ocupacions
@@ -237,6 +256,29 @@ print("dcatidp",len(dcatidp))
 dcatocu.update(dcatidp)
 print("dcatocu",len(dcatocu)) # afegeix identitats personals a les ocupacions
 
+# Compte que sobreescriu les variables per identificació (si calen després, cal canviar-les-hi el nom)
+idpwd = get_query("""# Categories d'ocupació (etiqueta)
+SELECT DISTINCT ?ocupacio ?ocupacioLabel ?cat ?categoria ?conte ?conteLabel
+WHERE {
+  ?ocupacio wdt:P31/wdt:279* wd:Q12737077.
+  ?ocupacio wdt:P910 ?cat.
+    ?categoria schema:about ?cat.
+    ?categoria schema:isPartOf <https://ca.wikipedia.org/>.
+  OPTIONAL{?cat wdt:P4224 ?conte}
+  SERVICE wikibase:label {bd:serviceParam wikibase:language "ca" . } 
+}""")
+#print(idpwd)
+didpcat = {x["ocupacio"]["value"].replace("http://www.wikidata.org/entity/",""):\
+urllib.parse.unquote(x["categoria"]["value"].replace("https://ca.wikipedia.org/wiki/","")).replace("_"," ")\
+for x in idpwd}
+#print(didpcat)
+print("didpcat",len(didpcat))
+dcatidp = {urllib.parse.unquote(x["categoria"]["value"].replace("https://ca.wikipedia.org/wiki/","")).replace("_"," "):\
+x["ocupacio"]["value"].replace("http://www.wikidata.org/entity/","")\
+for x in idpwd}
+print("dcatidp (ocupacions)",len(dcatidp))
+dcatocu.update(dcatidp)
+print("dcatocu",len(dcatocu)) # afegeix ocupacions (etiqueta) a les ocupacions
 
 
 llocswd = get_query("""# categories persones per lloc
@@ -294,7 +336,7 @@ for cat in dcatrel:
 #for cat in dintercat: print(cat, dintercat[cat]["cocu"], dintercat[cat]["clloc"])
 print("dintercat", len(dintercat))
 sintercat = {(x, tuple(sorted((dintercat[x]["cocu"], dintercat[x]["clloc"])))) for x in dintercat}
-print(list(sintercat)[0:6])
+#print(list(sintercat)[0:6])
 print("sintercat:", len(sintercat))
 
 cat1perswd = get_query("""# categories principals d'una persona
@@ -318,7 +360,7 @@ nwd = 0
 dcatinternom = {}
 for catlloc in list(dcatlloc):
     gentilici = re.sub("^Categoria:", "", catlloc)
-    gentilici = re.sub("^(Persones|Vallesans|Penedesencs|Pallaresos|Cerdans) ", "", gentilici)
+    gentilici = re.sub("^(Persones|Vallesans|Penedesencs|Pallaresos|Cerdans|Selvatans) ", "", gentilici)
     gentilici = gentilici[0].lower()+gentilici[1:]
     #print(gentilici)
     for catocu in list(dcatocu):
@@ -359,6 +401,8 @@ print("tgrups:",len(tgrups))
 
 # busquem categories per tros del nom
 catsmirar = [("Flamencs (persones)", ("flamencs")), 
+             ("Antics atenencs", ("de l'antiga Atenes", "atenencs de l'antiguitat")),
+             ("Nord-catalans", ("contemporanis", "contemporànies")),
              ("Catalans del sud contemporanis", ("contemporanis", "contemporànies", "catalans del sud")),
              ("Valencians contemporanis", ("contemporanis", "contemporànies")),
              ("Balears contemporanis", ("contemporanis", "contemporànies")),
@@ -397,6 +441,7 @@ scats = sintercat | scatinternom | set(tgrups) | set(tgrups1)
 print("scats:", len(scats))
 
 # ordenem categories per nombre de subcategories
+# i aprofitem per treure categories que no hi van
 if ordena:
     print("Carregant categories per ordenar")
     dicmida = {}
@@ -406,6 +451,19 @@ if ordena:
     for tcat in scats:
         cat = tcat[0]
         i=i+1
+        # Primer filtre. Veure més avall el segon al bucle d'intersecar.
+        if re.search(" per |guerra mundial|olímpi(c|que)s",cat.casefold()):
+            print(i,"/",n, cat, "Descartada")
+            continue
+        if re.search("(emperadors( romans)?|rei(ne)?s|prínceps|governants|presidents|caps d'estat|(grans )?ducs|(primers )?ministres) d", cat.casefold()):
+            print(i,"/",n, cat, "Descartada")
+            continue
+        if re.search("((arque)?bisbes|patriarques|governadors|alcaldes|comtes|senyors|barons) d", cat.casefold()):
+            print(i,"/",n, cat, "Descartada")
+            continue
+        if re.search("professors al?s? ", cat.casefold()):
+            print(i,"/",n, cat, "Descartada")
+            continue
         art0, cat0, diccat, diccatvell, art1, cat1=miracat(cat, dicc=diccat, diccvell=diccatvell, vell=True, prof=10)
         mida = len(cat1)
         if ordena3:
@@ -440,6 +498,7 @@ if ordena:
 # Comencem a buscar i posar categories
 n = len(catsllococu)
 i = 0
+filtreno = "(Virreis|Governadors civils|Diputats.* pel districte|Capitans .*generals|Bisbes) d" #categories a no mirar
 for tcat in catsllococu:
     i = i+1
     cat = tcat[0]
@@ -459,19 +518,24 @@ for tcat in catsllococu:
     if re.search("grups humans|guerra mundial", cat.casefold()):
         print("Descartada",cat)
         continue
-    if re.search("jocs olímpics", cat.casefold()) and not re.search("catalans|valencians|balears",cat.casefold()):
+    if re.search("olímpics", cat.casefold()) and not re.search("catalans|valencians|balears",cat.casefold()):
         print("Descartada per ser ambigu que sigui una categoria per origen",cat)
         continue
-    if re.search("espanyols|francesos", cat.casefold()):
+    if re.search("diputats d.* a l'assemblea nacional", cat.casefold()) and not re.search("catalans|valencians|balears",cat.casefold()):
+        print("Descartada",cat)
+        continue
+    if re.search("espanyols", cat.casefold()): #|francesos
         print("Descartada provisionalment",cat)
         continue
     catA=tcat[1][0]
     catB=tcat[1][1]
     art0, cat0, diccat, diccatvell, articles, cat1=miracat(cat, dicc=diccat, diccvell=diccatvell, vell=True, prof=14, noseg=cat1pers)
     lencats=desadicc(diccatvell, diccat, lencats)
-    art0, cat0, diccat, diccatvell, articlesA, cat1A=miracat(catA, dicc=diccat, diccvell=diccatvell, vell=True, prof=14, noinc=cat1pers)
+    art0, cat0, diccat, diccatvell, articlesA, cat1A=miracat(catA, dicc=diccat, diccvell=diccatvell, vell=True, prof=14, 
+                                                             noinc=cat1pers, noincregex=filtreno)
     lencats=desadicc(diccatvell, diccat, lencats)
-    art0, cat0, diccat, diccatvell, articlesB, cat1B=miracat(catB, dicc=diccat, diccvell=diccatvell, vell=True, prof=14, noinc=cat1pers)
+    art0, cat0, diccat, diccatvell, articlesB, cat1B=miracat(catB, dicc=diccat, diccvell=diccatvell, vell=True, prof=14, 
+                                                             noinc=cat1pers, noincregex=filtreno)
     lencats=desadicc(diccatvell, diccat, lencats)
     posar = (articlesA & articlesB) - articles
     print("Posar provisionalment:", posar, len(posar))
@@ -491,20 +555,48 @@ for tcat in catsllococu:
         if existeix:
             missatge = cat + " SÍ que existeix"
         else:
-            missatge = cat + " NO existeix"
+            missatge = cat + " NO existeix. L'eliminem dels diccionaris."
+            try:
+                del diccatvell[cat]
+            except KeyError:
+                missatge = missatge + " Però dóna KeyError."
+                print(missatge)
+                imprimeix(missatge)
+            continue
         print(missatge)
         imprimeix(missatge)
-        print("Deixem córrer la categoria")
-        continue
+        if (actualitza and len(posar)>0) or actualitzatot:
+            if cat not in cat1A:
+                art0, cat0, diccat, diccatvell, articlesA, cat1A=miracat(catA, dicc=diccat, diccvell=diccatvell, vell=False, prof=14, 
+                                                                         noinc=cat1pers, noincregex=filtreno)
+                lencats=desadicc(diccatvell, diccat, lencats)
+            if cat not in cat1B:
+                art0, cat0, diccat, diccatvell, articlesB, cat1B=miracat(catB, dicc=diccat, diccvell=diccatvell, vell=False, prof=14, 
+                                                                         noinc=cat1pers, noincregex=filtreno)
+                lencats=desadicc(diccatvell, diccat, lencats)
+            if not (cat in (cat1A & cat1B)):
+                missatge = "Comprovat que "+cat+" no és a la intersecció entre "+catA+" ("+str(cat in cat1A)+") i "+catB+" ("+str(cat in cat1B)+")"
+                print(missatge)
+                imprimeix(missatge)
+                continue
+            else:
+                missatge = "Comprovat que "+cat+" SÍ QUE ÉS a la intersecció entre "+catA+" ("+str(cat in cat1A)+") i "+catB+" ("+str(cat in cat1B)+")"
+                print(missatge)
+                imprimeix(missatge)           
+        else:
+            print("Deixem córrer la categoria")
+            continue
     if len(posar)>0:
         art0, cat0, diccat, diccatvell, articles, cat1=miracat(cat, dicc=diccat, diccvell=diccatvell, vell=False, prof=14, noseg=cat1pers)
         lencats=desadicc(diccatvell, diccat, lencats)
         if len(posar-articles)==0:
             print("Ja hi són tots")
             continue
-        art0, cat0, diccat, diccatvell, articlesA, cat1=miracat(catA, dicc=diccat, diccvell=diccatvell, vell=False, prof=14, noinc=cat1pers)
+        art0, cat0, diccat, diccatvell, articlesA, cat1=miracat(catA, dicc=diccat, diccvell=diccatvell, vell=False, prof=14, 
+                                                             noinc=cat1pers, noincregex=filtreno)
         lencats=desadicc(diccatvell, diccat, lencats)
-        art0, cat0, diccat, diccatvell, articlesB, cat1=miracat(catB, dicc=diccat, diccvell=diccatvell, vell=False, prof=14, noinc=cat1pers)
+        art0, cat0, diccat, diccatvell, articlesB, cat1=miracat(catB, dicc=diccat, diccvell=diccatvell, vell=False, prof=14, 
+                                                             noinc=cat1pers, noincregex=filtreno)
         lencats=desadicc(diccatvell, diccat, lencats)
         posar = (articlesA & articlesB) - articles
         print("Posar definitivament:", posar, len(posar))
