@@ -215,7 +215,7 @@ notocar = ["Categoria:Grammy a l'àlbum de l'any", "Categoria:Pel·lícules guan
 "Categoria:Premis de traducció","Categoria:Figueres", "Categoria:Copa Intertoto de la UEFA",
 "Categoria:Premis", "Categoria:Guanyadors del Premi Laurence Olivier",
 "Categoria:Guanyadors del Premi Tony"]
-notocarreg = "Categoria:(Jocs Olímpics|Festival|Foment|.*(premi Oscar|[Pp]el·lícules|BAFTA|Goncourt|[Pp]remi Goya))"
+notocarreg = "(Categoria:(Jocs Olímpics|Festival|Foment|.*(premi Oscar|[Pp]el·lícules|BAFTA|Goncourt|[Pp]remi Goya))|Globus d'Or"
 diccpral, diccprem = dicccategories()
 #print(diccpral)
 #print(diccprem)
@@ -273,7 +273,7 @@ for premi in list(premisi.keys()):
         else:
             catred = []
     print(catposa, catred)
-    if catposa in notocar or re.match(notocarreg, catposa):
+    if catposa in notocar or re.search(notocarreg, catposa):
         print("Categoria complicada. No faig res.")
         continue
     art0, cat0, diccat, diccatvell, articles, cat1=miracat(catposa, dicc=diccat, diccvell=diccatvell, vell=True, prof=5)
