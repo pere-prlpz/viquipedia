@@ -90,7 +90,7 @@ def posaplantilles(titol, site=pwb.Site('ca')):
         return()
     try:
         textvell=pag.get()
-    except pwb.IsRedirectPage:
+    except pwb.exceptions.IsRedirectPageError:
         print ("Pàgina redirigida")
         return()
     plantilles=pag.templates()
