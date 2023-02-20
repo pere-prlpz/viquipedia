@@ -10,6 +10,7 @@
 
 import pywikibot as pwb
 from pywikibot import pagegenerators
+from pywikibot.exceptions import IsRedirectPageError
 from SPARQLWrapper import SPARQLWrapper, JSON
 import re
 import pickle
@@ -36,6 +37,7 @@ def get_articles(prop=""):
       ?article schema:about ?subjecte;
         schema:isPartOf <https://ca.wikipedia.org/>.
       ?subjecte wdt:P18 ?imatge.""" + clausula + "}"
+    print(query)
     endpoint_url = "https://query.wikidata.org/sparql"
     results = get_results(endpoint_url, query)
     wd = results["results"]["bindings"]
@@ -45,11 +47,16 @@ def get_articles(prop=""):
 # el programa comença aquí
 arguments = sys.argv[1:]
 if len(arguments)>0:
+    if "-infotaula" in arguments: # comprovar que l'article tingui infotaula (no implementat)
+        infotaula=True
+        arguments.remove("-infotaula")
     propietat = arguments[0]
     explica = " Elements amb {{P|"+propietat+"}} a Wikidata."
+    explicatitol = "  amb {{P|"+propietat+"}}" 
 else:
     propietat = ""
     explica = ""
+    explicatitol = ""
 # recollida de dades a Wikidata
 site=pwb.Site('ca')
 dades = get_articles(prop=propietat)
@@ -76,7 +83,8 @@ for el in dades:
 #print(dicc)
 # busca imatges repetides
 print(len(dades),"imatges o articles trobats")
-total=len(dades)
+print(len(dicc),"articles trobats")
+total=len(dicc)
 compta=0
 comptatrobo=0
 pubcompta=0
@@ -89,10 +97,10 @@ for art in pagegenerators.PreloadingGenerator(dicc.keys()):
     print(compta,"/",total,art,dicc[art])
     try:
         text=art.get()
-    except pwb.IsRedirectPage:
+    except IsRedirectPageError:
         print("Redirecció")
         continue
-    except pwb.NoPage:
+    except NoPageError:
         print("Pàgina inexistent")
         continue
     if re.search("([Ii]mat?ge|[Ff]oto(grafia)?)2? *=.+",text):
@@ -111,7 +119,7 @@ for art in pagegenerators.PreloadingGenerator(dicc.keys()):
             nomart = art.title()
             resum = resum + f"# [[{nomart}]], [[:Fitxer:{nomimatge}]] {textdup}\n"
         if (compta - pubcompta >= 20000 or comptatrobo - pubtrobo >= 400) and len(resum)>0:
-            resumpub = resum0+"\n\n== Imatges repetides ==\n\n"
+            resumpub = resum0+"\n\n== Imatges repetides"+explicatitol+" ==\n\n"
             resumpub = resumpub+"\nArticles amb la {{P|18}} fora de la infotaula."+explica+"\n\n"+resum
             resumpub = resumpub+f"Vistos {compta} de {total}.--~~~~"
             nores=paginfo.get()
@@ -120,7 +128,7 @@ for art in pagegenerators.PreloadingGenerator(dicc.keys()):
             pubtrobo=comptatrobo
 print(resum)
 if len(resum)>0:
-    resumpub = resum0+"\n\n== Imatges repetides ==\n\n"
+    resumpub = resum0+"\n\n== Imatges repetides"+explicatitol+" ==\n\n"
     resumpub = resumpub+"\nArticles amb la {{P|18}} fora de la infotaula."+explica+"\n\n"+resum
     resumpub = resumpub+f"Vistos {compta} de {total}.--~~~~"
     nores=paginfo.get()
