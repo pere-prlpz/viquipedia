@@ -73,7 +73,7 @@ for urlweb in pagweb:
                         linia=u"*[[{}]] (redirecció)\n".format(tit)
                         informeno=informeno+linia
                         continue
-                except pywikibot.NoPage:
+                except pywikibot.exceptions.NoPageError:
                         linia=u"*[[{}]] (esborrada)\n".format(tit)
                         informeno=informeno+linia
                         continue
