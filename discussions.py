@@ -23,6 +23,7 @@ pagweb.append("https://ca.wikipedia.org/w/api.php?action=query&list=recentchange
 informe=u"Actualització: --~~~~\n\n"
 informeno=u"=Discussions noves no incloses=\n\n"
 #Compilació dels regex fora del loop per optimitzar
+re_tradt = re.compile(r"==.*==\n*\{\{([Tt]radu[iï]t|[Cc]opiat) de.*?\}\}")
 re_trad = re.compile(r"\{\{([Tt]radu[iï]t|[Cc]opiat) de.*?\}\}")
 re_sta = re.compile(r"\{\{STA\|.*?\}\}")
 re_usr = re.compile(r"\[\[(Usuari|\{\{ns:2\}\}).*?\]\]")
@@ -78,7 +79,9 @@ for urlweb in pagweb:
                         informeno=informeno+linia
                         continue
                 llarg0=len(text)
-                textnet=re.sub(re_trad,u"",text)
+                textnet=text
+                textnet=re.sub(re_tradt,u"",textnet)                
+                textnet=re.sub(re_trad,u"",textnet)
                 textnet=re.sub(re_sta,u"",textnet)
                 textnet=re.sub(re_usr,u"",textnet)
                 textnet=re.sub(re_span1,u"",textnet)
