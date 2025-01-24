@@ -32,6 +32,8 @@ re_span2 = re.compile(r"</(span|font)>")
 re_negreta = re.compile(r"'''")
 re_cometes = re.compile(r"''|\n")
 re_imatge = re.compile(r"--.?\[\[(File|Fitxer).*?\]\]") # imatge a la signatura
+re_titol = re.compile(r"==.?[Tt]raducció.?==") # encapçalament que se sol posar sobre la plantilla de traducció
+re_data = re.compile(r"\d{2}:\d{2}, \d{1,2} .{3} \d{4}") 
 
 for urlweb in pagweb:
         pllista=urllib.request.urlopen(urlweb) 
@@ -89,11 +91,14 @@ for urlweb in pagweb:
                 textnet=re.sub(re_negreta,u"",textnet)
                 textnet=re.sub(re_cometes,u"",textnet)
                 textnet=re.sub(re_imatge,u"",textnet)
+                textnet=re.sub(re_titol,u"",textnet)
+                textnet=re.sub(re_data,u"",textnet)
+                textnet=textnet.replace(tit, textnet)
                 textnet=textnet.replace("{{VPBDN}}","")
                 textnet=textnet.replace(u"\n","")
                 llargnet=len(textnet)
                 hihatrad=re.search(re_trad,text)
-                if hihatrad and llargnet < 35:
+                if hihatrad and llargnet < 25:
                         print (tit, u"Només etiqueta")
                         linia=u"*[[{}]] (només conté l'etiqueta de còpia o traducció)\n".format(tit)
                         informeno = informeno + linia
@@ -108,6 +113,7 @@ for urlweb in pagweb:
                 else:
                         informe = informe + linia
                 print (tit,llarg0,llargnet)
+                #print(textnet)
 informe=informe+informeno
 paginforme.put(informe,u"Robot inclou discussions recents")
 
