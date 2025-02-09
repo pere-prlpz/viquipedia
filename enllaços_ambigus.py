@@ -48,7 +48,7 @@ for title, n_links in disambig_list:
     page.text += '# [[' + title + ']]: ' + str(n_links) + ' [[Special:Whatlinkshere/' + title + '|enllaços]]\n'
 
 # Guardar els canvis a la pàgina wiki
-page.save(summary='Actualització automàtica de la llista de pàgines de desambiguació')
+page.save(summary='Actualització automàtica de la llista de pàgines de desambiguació ('+str(total_links)+")")
 
 # Actualitzar el recompte
 
@@ -66,7 +66,25 @@ def posa_ambigus(x):
     linies[i0+2] = "| "+str(date.today())
     print (linies[i0:(i0+3)])
     text = "\n".join(linies)
-    page.put(text, "bot actualitzant el nombre d'enllaços incorrectes a pàgines de desambiguació")
+    page.put(text, "bot actualitzant el nombre d'enllaços incorrectes a pàgines de desambiguació "+str(x))
     return
 
 posa_ambigus(total_links)
+
+def posa_ambigus_qq(x):
+    site = pywikibot.Site('ca', 'wikipedia')
+    page = pywikibot.Page(site, 'Viquipèdia:Gran Quinzena Anual de la Qualitat/2024')
+    #page = pywikibot.Page(site, 'Usuari:PereBot/taller') # per proves
+    text = page.get()
+    linies = re.split("\\n", text)
+    i0 = [i for i in range(1, len(linies)) if "|[[Viquipèdia:Enllaços incorrectes a pàgines de desambiguació|Enllaços incorrectes a pàgines de desambiguació]]" in linies[i]]
+    #print(i0)
+    i0 = i0[0]
+    print (linies[i0:(i0+6)])
+    linies[i0+5] = "| "+str(x)
+    print (linies[i0:(i0+6)])
+    text = "\n".join(linies)
+    page.put(text, "bot actualitzant el nombre d'enllaços incorrectes a pàgines de desambiguació "+str(x))
+    return
+
+posa_ambigus_qq(total_links)

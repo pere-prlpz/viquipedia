@@ -117,9 +117,14 @@ def posaplantilles(titol, site=pwb.Site('ca')):
     return()
 
 #el programa comença aquí
+# versió categoria principal i taxocaixa (compte:falta actualitzar propietats)
 depth = 20 # depth baix per proves
-url1 = "https://petscan.wmflabs.org/?search_query=&ns%5B0%5D=1&active_tab=tab_wikidata&edits%5Bbots%5D=both&edits%5Bflagged%5D=both&depth="
-url2 = "&categories=Arbre%20de%20la%20vida&cb_labels_no_l=1&wikidata_prop_item_use=P1348,P4024,P7905,P2036,P3594,P2026,P5036,P3606,P838,P6070,P687,P1939,P3444,P830,P1895,P938,P5179,P1747,P846,P6433,P1421,P3099,P1076,P1391,P3151,P961,P815,P627,P959,P962,P685,P6754,P842,P1070,P1772,P2040,P7066,P960,P4728,P1772,P1745,P4664,P850,P3288,P2426,P1746&edits%5Banons%5D=both&search_max_results=500&project=wikipedia&templates_no=Bases%20de%20dades%20taxon%C3%B2miques&interface_language=en&language=ca&cb_labels_any_l=1&cb_labels_yes_l=1&negcats=&format=json&langs_labels_any=&doit="
+url1 = "https://petscan.wmflabs.org/?show_redirects=no&pagepile=&outlinks_any=&smaller=&wikidata_prop_item_use=P1348%2CP4024%2CP7905%2CP2036%2CP3594%2CP2026%2CP5036%2CP3606%2CP838%2CP6070%2CP687%2CP1939%2CP3444%2CP830%2CP1895%2CP938%2CP5179%2CP1747%2CP846%2CP6433%2CP1421%2CP3099%2CP1076%2CP1391%2CP3151%2CP961%2CP815%2CP627%2CP959%2CP962%2CP685%2CP6754%2CP842%2CP1070%2CP1772%2CP2040%2CP7066%2CP960%2CP4728%2CP1772%2CP1745%2CP4664%2CP850%2CP3288%2CP2426%2CP1746&output_compatability=catscan&labels_yes=&cb_labels_no_l=1&show_soft_redirects=both&sortorder=ascending&templates_any=Infotaula+%C3%A9sser+viu%0D%0AIEV&categories=Principal&cb_labels_any_l=1&language=ca&edits%5Bbots%5D=both&rxp_filter=&interface_language=en&labels_no=&psid=26784760&edits%5Banons%5D=both&common_wiki=auto&sitelinks_no=&subpage_filter=either&active_tab=tab_templates_n_links&max_age=&links_to_all=&source_combination=&namespace_conversion=keep&depth="
+url2 = "&templates_no=Bases+de+dades+taxon%C3%B2miques%0D%0ABDT&wikidata_label_language=&search_filter=&ores_prediction=any&sortby=none&ns%5B0%5D=1&langs_labels_any=&manual_list=&min_sitelink_count=&project=wikipedia&before=&larger=&wikidata_source_sites=&cb_labels_yes_l=1&search_max_results=500&doit=&format=json"
+# versió arbre de la vida
+depth = 35 # depth baix per proves
+url1 = "https://petscan.wmflabs.org/?show_redirects=no&search_query=&ns%5B0%5D=1&active_tab=tab_wikidata&edits%5Bbots%5D=both&edits%5Bflagged%5D=both&depth="
+url2 = "&categories=Arbre%20de%20la%20vida&cb_labels_no_l=1&wikidata_prop_item_use=P7715,P9157,P5037,P6098,P10585,P1348,P4024,P7905,P2036,P3594,P2026,P5036,P3606,P838,P6070,P687,P1939,P3444,P830,P1895,P938,P5179,P1747,P846,P6433,P1421,P3099,P1076,P1391,P3151,P961,P815,P627,P959,P962,P685,P6754,P842,P1070,P1772,P2040,P7066,P960,P4728,P1772,P1745,P4664,P850,P3288,P2426,P1746,P12560&edits%5Banons%5D=both&search_max_results=500&project=wikipedia&templates_no=Bases%20de%20dades%20taxon%C3%B2miques&interface_language=en&language=ca&cb_labels_any_l=1&cb_labels_yes_l=1&negcats=&format=json&langs_labels_any=&doit="
 url=url1+str(depth)+url2
 titols = llegeix_petscan(url)
 print(titols[0:min(10,len(titols))])

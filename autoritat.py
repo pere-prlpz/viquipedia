@@ -108,9 +108,9 @@ def posaplantilles(titol, site=pwb.Site('ca')):
     return()
 
 #el programa comença aquí
-depth = 15 # depth baix per proves
+depth = 30 # depth baix per proves
 url1 = "https://petscan.wmflabs.org/?links_to_all=&project=wikipedia&templates_no=Autoritat&edits%5Banons%5D=both&cb_labels_no_l=1&edits%5Bbots%5D=both&search_max_results=500&ns%5B0%5D=1&cb_labels_yes_l=1&categories=Principal&interface_language=en&larger=70&active_tab=tab_pageprops&language=ca&depth="
-url2 = "&cb_labels_any_l=1&edits%5Bflagged%5D=both&wikidata_prop_item_use=P1296,P5513,P6412,P902,P886,P7872,P7357,P2498&format=json&langs_labels_any=&doit="
+url2 = "&cb_labels_any_l=1&edits%5Bflagged%5D=both&wikidata_prop_item_use=P1296,P5513,P6412,P902,P886,P7872,P7357,P2498,P12385&format=json&langs_labels_any=&doit="
 # Europeana ,P7704 no inclòs perquè hi ha registres buits
 url=url1+str(depth)+url2
 titols = llegeix_petscan(url)
