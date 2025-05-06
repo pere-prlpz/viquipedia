@@ -54,6 +54,49 @@ def get_dicc(query, treurl=True, mostra=False, primer=False):
                 mons[qitem]=mon
     return(mons)
 
+def get_tot(qlloc="Q1492", mostra=False, nofoto=False):
+    query0="""# elements amb foto sense commonscat (un lloc)
+SELECT DISTINCT ?item ?itemLabel ?itemLabelen ?div ?divLabel ?barri ?distr ?distrLabel ?mun ?munLabel ?ipac ?idbcn WHERE {
+  ?item wdt:P131* wd:"""+qlloc+""".
+  ?item wdt:P625 [].
+  ?item wdt:P18 [].
+  OPTIONAL {
+    ?item wdt:P131+ ?barri.
+    ?barri wdt:P31 wd:Q75135432 
+  }
+  OPTIONAL {
+    ?item wdt:P131+ ?distr.
+    ?distr wdt:P31 wd:Q790344 
+  }
+  OPTIONAL {
+    ?item wdt:P131+ ?mun.
+    ?mun wdt:P31 wd:Q33146843 
+  }
+  OPTIONAL {?item wdt:P11557 ?idbcn}
+  OPTIONAL {?item wdt:P1600 ?ipac}
+  BIND(COALESCE(?barri, ?distr, ?mun) as ?div)
+  MINUS {?item wdt:P373 []}
+  MINUS {?item wdt:P910 []}
+  MINUS {
+    ?commonslink schema:isPartOf <https://commons.wikimedia.org/>.
+    ?commonslink schema:about ?item.
+  }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language 'ca' }  
+  SERVICE wikibase:label {
+   bd:serviceParam wikibase:language "en".
+   ?item rdfs:label ?itemLabelen.
+  }
+}
+ORDER BY ?munLabel ?distrLabel ?divLabel ?itemLabel ?item"""
+    if nofoto:
+        query0 = query0.replace("?item wdt:P18 [].", "MINUS {?item wdt:P18 [].}")
+        query0 = query0.replace("""{{?item wdt:P1600 [].}
+UNION
+""", "{")
+    mons = get_dicc(query=query0, mostra=mostra, primer=True)
+    return(mons)
+
+
 def get_edificis(mostra=False, nofoto=False):
     query0="""# elements amb identificador, amb foto sense commonscat (Catalunya)
 SELECT DISTINCT ?item ?itemLabel ?itemLabelen ?div ?divLabel ?barri ?distr ?distrLabel ?mun ?munLabel ?ipac ?idbcn WHERE {
@@ -108,8 +151,8 @@ def cat_edifici(dicc):
                   "Q1404773":"Poblenou",
                   "Q980253":"Poble-sec (Sants-Montjuïc)",
                   "Q3296693":"Les Corts neighbourhood",
-                  "Q3291762":"Esquerra de l'Eixample",
-                  "Q1026658":"Esquerra de l'Eixample",
+                  "Q2470217":"Sagrada Família (neighbourhood)",
+                  "Q720994":"Sant Antoni (Eixample)",
                   "Q17154":"El Gòtic (Barcelona)",
                   "Q1758503":"El Raval",
                   "Q16722":"Mura (Spain)"}
@@ -121,8 +164,8 @@ def cat_edifici(dicc):
     else:
         lloc = dicc["divLabel"]["value"].replace(" - ", "-")
         if "barri" not in dicc:
-            #lloc = lloc[0].upper()+lloc[1:]
-            pass
+            lloc = lloc[0].upper()+lloc[1:]
+            #pass
     cat = "Buildings in "+ lloc
     return(cat)
 
@@ -165,18 +208,21 @@ def nom_commons(dicc):
         nc = nomen
         if re.match("^[Bb]uilding in (carrer del Rec|[Rr]ambla del Poblenou),", nomen): # ampliar amb els carrers que s'hagin de deixar
             nc = re.sub("^[Bb]uilding in ", "", nc)
-        nc = re.sub("^[Bb]uildings? in carrer (del |de (l'|la ))", "", nc)
-        nc = re.sub("^[Bb]uildings? in carrer (de |d')", "", nc)
-        nc = re.sub("^[Bb]uildings? in carrer ", "", nc)
+        nc = re.sub("^[Bb]uildings? in [Cc]arrer (del |de (l'|la ))", "", nc)
+        nc = re.sub("^[Bb]uildings? in [Cc]arrer (de |d')", "", nc)
+        nc = re.sub("^[Bb]uildings? in [Cc]arrer ", "", nc)
         nc = re.sub("^[Bb]uildings? in ", "", nc)
         if nomen != nc:
             return(nc)
     nc = dicc["itemLabel"]["value"]
-    nc = re.sub("^([Cc]asa|[Ee]difici|[Hh]abitatges?)( (d'habitatges|[Uu]nifamiliars?|[Pp]lurifamiliars?|d'oficines))? (al|del) carrer (del? |d')?", "", nc)
+    nc = re.sub("^([Cc]asa|[Ee]difici|[Hh]abitatges?)( (d'habitatges|[Uu]nifamiliars?|[Pp]lurifamiliars?|d'oficines))? ((al|del) )?[Cc]arrer (del? |d')?", "", nc)
     nc = re.sub("^([Cc]asa|[Ee]difici|[Hh]abitatges?)( (d'habitatges|[Uu]nifamiliars?|[Pp]lurifamiliars?|d'oficines))? (a|de) l'[Aa]vinguda (del? |d')?", "Avinguda ", nc)
     nc = re.sub("^([Cc]asa|[Ee]difici|[Hh]abitatges?)( (d'habitatges|[Uu]nifamiliars?|[Pp]lurifamiliars?|d'oficines))? (a|de) la [Pp]laça (del? |d')?", "Plaça ", nc)
     nc = re.sub("^([Cc]asa|[Ee]difici|[Hh]abitatges?)( (d'habitatges|[Uu]nifamiliars?|[Pp]lurifamiliars?|d'oficines))? (a|de) la [Rr]ambla (del? |d')?", "Rambla ", nc)
+    nc = re.sub("^([Cc]asa|[Ee]difici|[Hh]abitatges?)( (d'habitatges|[Uu]nifamiliars?|[Pp]lurifamiliars?|d'oficines))? ((al|del) )?[Pp]asseig (del? |d')?", "Passeig ", nc)
     nc = re.sub("^([Ee]scultura) ", "", nc)
+    nc = re.sub("/.*","",nc)
+    nc = nc.strip()
     return(nc)
 
 def cat_tipus(dicc):
@@ -196,6 +242,9 @@ def cat_tipus(dicc):
     if re.match("^([Rr]ellotge de [Ss]ol) ", nom):
         ct = "Sundials in "+mun
         return(ct)
+    if re.match("^([Ff]ont) ", nom):
+        ct = "Fountains in "+mun
+        return(ct)
     else:
         return(False)
 
@@ -211,18 +260,123 @@ def link_creacat(catpral, nom="", categories=[]):
     link = link + urllib.parse.quote_plus(scats)
     return(link)
 
+def get_municipis(desa=True):
+    # diccionari de municipis a item, directe i invers
+    # l'invers (label a item) en minúscules (casefold)
+    # Fa servir també noms oficials i alies si no dupliquen un label.
+    query = """#Municipis i comarques del nostre entorn, amb els noms alternatius separats
+    SELECT DISTINCT ?mun ?munLabel ?oficial ?alias
+        WHERE {
+    VALUES ?tipus {wd:Q484170
+     wd:Q2989454
+     wd:Q20899166
+     wd:Q22927548
+     wd:Q22927616
+    # wd:Q84598477
+    # wd:Q84599126
+     wd:Q2074737
+    # wd:Q2276925
+    # wd:Q3284867
+    # wd:Q5055981
+     wd:Q33146843
+    # wd:Q55863584
+     wd:Q61763947
+     wd:Q24279
+     wd:Q21869758
+     wd:Q937876}
+      ?mun wdt:P31 ?tipus.
+        OPTIONAL {?mun wdt:P1448 ?oficial}
+        OPTIONAL {?mun skos:altLabel ?alias.
+                 FILTER(lang(?alias)="ca")}
+        SERVICE wikibase:label {
+        bd:serviceParam wikibase:language "ca" .
+        }
+    }"""
+    endpoint_url = "https://query.wikidata.org/sparql"
+    results = get_results(endpoint_url, query)
+    dicdirecte={}
+    dicinvers={}
+    for mon in results["results"]["bindings"]:
+        #print(mon)
+        #print(mon["mun"]["value"], mon["munLabel"]["value"])
+        qmun=mon["mun"]["value"].replace("http://www.wikidata.org/entity/","")
+        nommun=mon["munLabel"]["value"]
+        dicdirecte[qmun]=nommun
+        if "calink" in mon.keys():
+            calink = mon["calink"]["value"].replace("https://ca.wikipedia.org/wiki/","")
+            dicinvers[calink.casefold()]=qmun
+        if not(nommun.casefold() in dicinvers.keys()): 
+            dicinvers[nommun.casefold()]=qmun
+        if "oficial" in mon.keys():
+            nomoficial=mon["oficial"]["value"]
+            if not(nomoficial.casefold() in dicinvers.keys()): 
+                dicinvers[nomoficial.casefold()]=qmun
+        if "alias" in mon.keys():
+            alies=mon["alias"]["value"]
+            if len(alies)>1 and not(alies.casefold() in dicinvers.keys()):
+                dicinvers[alies.casefold()]=qmun   
+    # municipis de França amb el departament per desambiguar
+    query="""SELECT ?mun ?munLabel ?depLabel
+    WHERE {
+      hint:Query hint:optimizer "None".  
+      ?mun wdt:P31 wd:Q484170.
+      ?mun wdt:P131+ ?dep.
+      ?dep wdt:P31 wd:Q6465.
+        SERVICE wikibase:label {
+        bd:serviceParam wikibase:language "ca".
+        }
+    }"""
+    endpoint_url = "https://query.wikidata.org/sparql"
+    results = get_results(endpoint_url, query)
+    for mon in results["results"]["bindings"]:
+        qmun=mon["mun"]["value"].replace("http://www.wikidata.org/entity/","")
+        nommun=mon["munLabel"]["value"].strip()
+        nomdep=mon["depLabel"]["value"].strip()
+        nomdesamb=(nommun+" ("+nomdep+")").casefold()
+        if nomdesamb not in dicinvers.keys():
+            dicinvers[nomdesamb]=qmun
+    # desar
+    if desa:
+        fitxer = r"municipis.pkl"
+        pickle.dump((dicdirecte, dicinvers), open(fitxer, "wb"))
+    return(dicdirecte, dicinvers)
+
+def carrega_municipis():
+    try:
+        a,b=pickle.load(open(r"municipis.pkl", "rb"))
+    except FileNotFoundError:
+        print ("Fitxer municipis no trobat. Important de Wikidata.")
+        a,b=get_municipis()
+    return(a,b)
+
+
 # el programa comença aquí
 arguments = sys.argv[1:]
 nofoto=False
+noq=True
 if len(arguments)>0:
     if "-nofoto" in arguments:
         nofoto=True
         arguments.remove("-nofoto")
+    if "-noq" in arguments:
+        noq=True
+        arguments.remove("-noq")
+    if "-siq" in arguments:
+        noq=False
+        arguments.remove("-siq")
     lloc=" ".join(arguments)
+    if len(lloc)>0:
+        dicqmun,dicmunq = carrega_municipis()
+        qlloc = dicmunq[lloc.casefold()]
+    else:
+        lloc="tot"
 else:
     print("Manca el nom del lloc. Agafem opció per defecte")
     lloc="tot" #"prova"
-edificis = get_edificis(mostra=True, nofoto=nofoto)
+if lloc=="tot":
+    edificis = get_edificis(mostra=True, nofoto=nofoto)
+else:
+    edificis = get_tot(qlloc, mostra=True, nofoto=nofoto)
 print(len(edificis))
 #print(edificis)
 #objectiu = [x for x in edificis.keys() if edificis[x]["divLabel"]["value"]=="Sant Gervasi-Galvany"]
@@ -233,24 +387,31 @@ elif lloc == "prova":
     objectiu = [x for x in edificis.keys() if "distrLabel" in edificis[x].keys() and edificis[x]["distrLabel"]["value"]=="Sarrià - Sant Gervasi"]
     paginf = 'User:PereBot/categories'
 else:
-    objectiu = [x for x in edificis.keys() if lloc.casefold() in [edificis[x].get("divLabel",{"value":"ZZZ"})["value"].casefold(), 
-                                                                  edificis[x].get("barriLabel",{"value":"ZZZ"})["value"].casefold(), 
-                                                                  edificis[x].get("distrLabel",{"value":"ZZZ"})["value"].casefold(), 
-                                                                  edificis[x].get("munLabel",{"value":"ZZZ"})["value"].casefold()]]
+    # objectiu = [x for x in edificis.keys() if lloc.casefold() in [edificis[x].get("divLabel",{"value":"ZZZ"})["value"].casefold(), 
+                                                                  # edificis[x].get("barriLabel",{"value":"ZZZ"})["value"].casefold(), 
+                                                                  # edificis[x].get("distrLabel",{"value":"ZZZ"})["value"].casefold(), 
+                                                                  # edificis[x].get("munLabel",{"value":"ZZZ"})["value"].casefold()]]
+    objectiu = edificis.keys()
     paginf = 'User:PereBot/categories/'+lloc
 #print(objectiu)
 if nofoto:
     paginf = paginf+"/sense P18"
 print(paginf)
 informe = "{{User:PereBot/categories/introducció}}\n\n"
+if lloc != "tot":
+    informe = informe+"Dades de {{Q|"+qlloc+"}}\n\n"
 div0 = ""
 for qid in objectiu:
+    if (len(informe)> 2e6):
+        continue
     #print(edificis[qid])
     #print(qid)
     #print(edificis[qid]["itemLabel"]["value"])
     #print(cat_edifici(edificis[qid]))
     #print(cat_monument(edificis[qid]))
     nomcat =  edificis[qid]["itemLabel"]["value"]
+    if noq and re.match("^Q[0-9]+$", nomcat):
+        continue
     nomcommons = nom_commons(edificis[qid])
     cedif = cat_edifici(edificis[qid])
     cmonum = cat_monument(edificis[qid])
@@ -272,7 +433,7 @@ for qid in objectiu:
         inf_cat = inf_cat+" [[:Category:"+cmonum+"]]"
     if ctipus != False:
         inf_cat = inf_cat+" [[:Category:"+ctipus+"]]"
-    inf_cat=inf_cat+"\n<pre><nowiki>{{Wikidata infobox}}\n{{ca|"+nomcat+"}}\n\n"
+    inf_cat=inf_cat+"\n<pre><nowiki>{{Wikidata Infobox}}\n{{ca|"+nomcat+"}}\n\n"
     inf_cat=inf_cat+"[[Category:"+cedif+"]]\n"
     if cmonum != False:
         inf_cat = inf_cat+"[[Category:"+cmonum+"]]\n"

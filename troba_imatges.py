@@ -44,7 +44,7 @@ imatges=usuari.uploadedImages(total=55000)
 nomeves = ["File:Bavarian Admin Districts.jpg", "File:Guadalquivir River Coria del Rio.jpg"]
 nomeves = nomeves + ["File:Retrat de Felip Vé exposat cap per avall al Museu de l'Almodí de Xàtiva per haver incendiat la ciutat el 1707.jpg"]
 nomeves = nomeves + ["File:Sta-eulalia.jpg", "File:Cicle de la calç.png", "File:Canigou murano.jpg","File:Trainjaune082004.jpg"]
-nomeves = nomeves + ["File:Illa de Xàtiva.jpg", "File:Pyrenean Brook Salamander (Euproctus asper).jpg"]
+nomeves = nomeves + ["File:Illa de Xàtiva.jpg", "File:Pyrenean Brook Salamander (Euproctus asper).jpg", "File:Slides.jpg"]
 midlist = []
 imnoves = list()
 for imatge in imatges:

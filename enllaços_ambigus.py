@@ -43,7 +43,7 @@ disambig_list.sort(key=lambda x: x[1], reverse=True)
 page = pywikibot.Page(site, 'Viquipèdia:Enllaços incorrectes a pàgines de desambiguació')
 
 # Actualitzar la pàgina amb la llista de pàgines de desambiguació
-page.text = 'Actualització de {{data|' + str(datetime.date.today()) + '}}: ' + str(total_links) + '\n\n'
+page.text = 'Actualització de {{data|' + str(datetime.date.today()) + '}}: ' + str(total_links) + '\n'
 for title, n_links in disambig_list:
     page.text += '# [[' + title + ']]: ' + str(n_links) + ' [[Special:Whatlinkshere/' + title + '|enllaços]]\n'
 

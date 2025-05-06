@@ -49,6 +49,9 @@ def insertaut(page,afegit="{{Autoritat}}"):
     elif re.search(u"\[\[ ?[Cc]ategoria ?:",text):
         text=re.sub(u"\[\[ ?[Cc]ategoria ?:",afegit+u"\n\n[[Categoria:",text,count=1)
         print (afegit,u"afegit davant de les categories")
+    elif re.search(u"\{\{ ?[Dd]esambiguació\}\}",text):
+        text=text+"\n\n"+afegit
+        print (afegit,u"afegit al final (pàgina de desambiguació)")
     else:
         print (u"No he trobat on afegir el text a [["+page.title()+u"]]")
     return text
@@ -57,20 +60,25 @@ def insertaut(page,afegit="{{Autoritat}}"):
 # PER FER: FER QUE POSI BÉ LES PLANTILLES QUE HAGIN QUEDAT ABANS D'ENLLAÇOS EXTERNS
 def poleix(text):
     for i in range(1,10):
-        text=text.replace("\}\}\n\n{{Autoritat}}",u"\}\}\n{{Autoritat}}")
         text=text.replace("\n\n\n{{Autoritat}}",u"\n\n{{Autoritat}}")
+        text=text.replace("}}\n\n{{Autoritat}}",u"}}\n{{Autoritat}}")
         text=text.replace("\n\n\n{{Bases de dades taxonòmiques}}","\n\n{{Bases de dades taxonòmiques}}")
-        text=text.replace("\n\n{{Commonscat",u"\n{{Commonscat")
         text=text.replace("\n\n{{Projectes germans",u"\n{{Projectes germans")
         text=re.sub("(\{\{ORDENA\:.*\}\}|\{\{Enllaç A[BD]\|.*\}\})\n*(\{\{Bases de dades taxonòmiques\}\}|\{\{Autoritat\}\})",r"\2\n\1",text)
         text=re.sub("(\{\{[Cc]al coor\}\}|\{\{[Cc]al coor\|.*?\}\})\n*(\{\{Bases de dades taxonòmiques\}\}|\{\{Autoritat\}\})",r"\2\n\1",text)
         text=re.sub("(\[\[ ?[Cc]ategoria ?\:.*\|?.*?\]\])\n*(\{\{Bases de dades taxonòmiques\}\}|\{\{Autoritat\}\})",r"\2\n\1",text)
         text=text.replace(u"\n\n\n{{ORDENA",u"\n\n{{ORDENA")
+    text=text.replace("]\n{{Autoritat}}", "]\n\n{{Autoritat}}")
     text=text.replace(u"{{Autoritat}}\n{{ORDENA",u"{{Autoritat}}\n\n{{ORDENA")
+    text=text.replace(u"{{referències}}\n{{Autoritat",u"{{referències}}\n\n{{Autoritat")
+    text=text.replace(u"{{Referències}}\n{{Autoritat",u"{{Referències}}\n\n{{Autoritat")
+    text=text.replace(u"{{en}}\n{{Autoritat",u"{{en}}\n\n{{Autoritat")
     text=text.replace(u"{{Autoritat}}\n[[Categoria:",u"{{Autoritat}}\n\n[[Categoria:")
     text=text.replace(u"{{Bases de dades taxonòmiques}}\n{{ORDENA",u"{{Bases de dades taxonòmiques}}\n\n{{ORDENA")
     text=text.replace(u"{{Bases de dades taxonòmiques}}\n[[Categoria:",u"{{Bases de dades taxonòmiques}}\n\n[[Categoria:")
     text=re.sub(u"\{\{ ?citar web ?\|",u"{{ref-web|",text)
+    text=text.replace(u"==\n\n",u"==\n")
+    text=text.replace(u" \n",u"\n")
     return text
 
 def posaplantilles(titol, site=pwb.Site('ca')):
@@ -110,7 +118,7 @@ def posaplantilles(titol, site=pwb.Site('ca')):
 #el programa comença aquí
 depth = 30 # depth baix per proves
 url1 = "https://petscan.wmflabs.org/?links_to_all=&project=wikipedia&templates_no=Autoritat&edits%5Banons%5D=both&cb_labels_no_l=1&edits%5Bbots%5D=both&search_max_results=500&ns%5B0%5D=1&cb_labels_yes_l=1&categories=Principal&interface_language=en&larger=70&active_tab=tab_pageprops&language=ca&depth="
-url2 = "&cb_labels_any_l=1&edits%5Bflagged%5D=both&wikidata_prop_item_use=P1296,P5513,P6412,P902,P886,P7872,P7357,P2498,P12385&format=json&langs_labels_any=&doit="
+url2 = "&cb_labels_any_l=1&edits%5Bflagged%5D=both&wikidata_prop_item_use=P5513,P6412,P902,P886,P7872,P7357,P2498,P12385,P1607,P549,P402,P1960,P3365,P12802,P12860,P6239,P6058,P6126,P10242,P1417,P13371,P4342&format=json&langs_labels_any=&doit="
 # Europeana ,P7704 no inclòs perquè hi ha registres buits
 url=url1+str(depth)+url2
 titols = llegeix_petscan(url)
