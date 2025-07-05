@@ -56,7 +56,7 @@ def get_dicc(query, treurl=True, mostra=False, primer=False):
 
 def get_tot(qlloc="Q1492", mostra=False, nofoto=False):
     query0="""# elements amb foto sense commonscat (un lloc)
-SELECT DISTINCT ?item ?itemLabel ?itemLabelen ?div ?divLabel ?barri ?distr ?distrLabel ?mun ?munLabel ?ipac ?idbcn WHERE {
+SELECT DISTINCT ?item ?itemLabel ?itemLabelen ?div ?divLabel ?barri ?distr ?distrLabel ?mun ?munLabel ?ipac ?idbcn ?inst ?instLabel WHERE {
   ?item wdt:P131* wd:"""+qlloc+""".
   ?item wdt:P625 [].
   ?item wdt:P18 [].
@@ -74,6 +74,7 @@ SELECT DISTINCT ?item ?itemLabel ?itemLabelen ?div ?divLabel ?barri ?distr ?dist
   }
   OPTIONAL {?item wdt:P11557 ?idbcn}
   OPTIONAL {?item wdt:P1600 ?ipac}
+  OPTIONAL {?item wdt:P31 ?inst}
   BIND(COALESCE(?barri, ?distr, ?mun) as ?div)
   MINUS {?item wdt:P373 []}
   MINUS {?item wdt:P910 []}
@@ -99,14 +100,14 @@ UNION
 
 def get_edificis(mostra=False, nofoto=False):
     query0="""# elements amb identificador, amb foto sense commonscat (Catalunya)
-SELECT DISTINCT ?item ?itemLabel ?itemLabelen ?div ?divLabel ?barri ?distr ?distrLabel ?mun ?munLabel ?ipac ?idbcn WHERE {
+SELECT DISTINCT ?item ?itemLabel ?itemLabelen ?div ?divLabel ?barri ?distr ?distrLabel ?mun ?munLabel ?ipac ?idbcn ?inst ?instLabel WHERE {
 {{?item wdt:P11557 [].}
 UNION
 {?item wdt:P12802[].}}
 UNION
 {{?item wdt:P1600 [].}
 UNION
-{?item wdt:P12860 [].}}  
+{?item wdt:P12860 [].}} 
   ?item wdt:P18 [].
   OPTIONAL {
     ?item wdt:P131+ ?barri.
@@ -122,6 +123,7 @@ UNION
   }
   OPTIONAL {?item wdt:P11557 ?idbcn}
   OPTIONAL {?item wdt:P1600 ?ipac}
+  OPTIONAL {?item wdt:P31 ?inst}
   BIND(COALESCE(?barri, ?distr, ?mun) as ?div)
   MINUS {?item wdt:P373 []}
   MINUS {?item wdt:P910 []}
@@ -146,6 +148,13 @@ UNION
     
 # torna la categoria d'edificis en funció de tota l'entrada de la consulta
 def cat_edifici(dicc):
+    noedificis = ["font", "placa commemorativa", "camí", "obra escultòrica", "mural",
+    "carretera nacional d'Espanya", "carrer", "rellotge de sol", 
+    "pont", "pont de carretera", "placa commemorativa", "jardí públic", "plaça"]
+    if not ("instLabel" in dicc):
+        return(False)   
+    if dicc["instLabel"]["value"].casefold() in noedificis:
+        return(False)
     llocs_edif = {"Q3321657":"Sant Gervasi-la Bonanova",
                   "Q3321805":"el Putget i Farró",
                   "Q1404773":"Poblenou",
@@ -226,24 +235,43 @@ def nom_commons(dicc):
     return(nc)
 
 def cat_tipus(dicc):
-    nom = dicc["itemLabel"]["value"]
+    nom = dicc["itemLabel"]["value"].casefold()
+    if "instLabel" in dicc:
+        inst = dicc["instLabel"]["value"].casefold()
+    else:
+        inst = ""
     if not "munLabel" in dicc:
         return False
     mun = dicc["munLabel"]["value"]
-    if re.match("^([Cc]as(a|es)|[Hh]abitatges?|[Vv]il·?la) ", nom):
+    if inst=="masia":
+        ct = "Masies in "+mun
+        return(ct)
+    if inst in ["església", "església parroquial", "església parroquial catòlica", "basílica", "ermita"]:
+        ct = "Churches in "+mun
+        return(ct)
+    if re.match("^([Cc]as(a|es)|[Hh]abitatges?|[Vv]il·?la) ", nom) or inst=="casa":
         ct = "Houses in "+mun
         return(ct)
     if re.match("^([Pp]alau) ", nom):
         ct = "Palaces in "+mun
         return(ct)
-    if re.match("^([Ee]s(cultur|tatu)(a|es)) ", nom):
+    if re.match("^([Ee]s(cultur|tatu)(a|es)) ", nom) or inst=="obra escultòrica":
         ct = "Sculptures in "+mun
         return(ct)
-    if re.match("^([Rr]ellotge de [Ss]ol) ", nom):
+    if re.match("^([Rr]ellotge de [Ss]ol) ", nom) or inst=="rellotge de sol":
         ct = "Sundials in "+mun
         return(ct)
-    if re.match("^([Ff]ont) ", nom):
+    if re.match("^([Ff]ont) ", nom) or inst=="font":
         ct = "Fountains in "+mun
+        return(ct)
+    if inst in ["carrer", "avinguda", "passeig"]:
+        ct = "Streets in "+mun
+        return(ct)
+    if re.match("pont ", inst):
+        ct = "Bridges in "+mun
+        return(ct)
+    if inst=="placa commemorativa":
+        ct = "Plaques in "+mun
         return(ct)
     else:
         return(False)
@@ -426,15 +454,22 @@ for qid in objectiu:
     else:
         inf_cat=""
     inf_cat = inf_cat + "=== "+nomcat+"===\n\n"
-    inf_cat = inf_cat + "{{Q|"+qid+"}}\n\n"
+    if "instLabel" in edificis[qid]:
+        inst = edificis[qid]["instLabel"]["value"]
+    else:
+        inst = ""
+    inf_cat = inf_cat + "{{Q|"+qid+"}} " + inst + "\n\n"
     inf_cat = inf_cat + "Proposat: '''[[:Category:"+nomcommons+"]]'''\n\n"
-    inf_cat = inf_cat + "Categories: [[:Category:"+cedif+"]]"
+    inf_cat = inf_cat + "Categories:"
+    if cedif != False:
+        inf_cat = inf_cat+" [[:Category:"+cedif+"]]"    
     if cmonum != False:
         inf_cat = inf_cat+" [[:Category:"+cmonum+"]]"
     if ctipus != False:
         inf_cat = inf_cat+" [[:Category:"+ctipus+"]]"
     inf_cat=inf_cat+"\n<pre><nowiki>{{Wikidata Infobox}}\n{{ca|"+nomcat+"}}\n\n"
-    inf_cat=inf_cat+"[[Category:"+cedif+"]]\n"
+    if cedif != False:
+        inf_cat=inf_cat+"[[Category:"+cedif+"]]\n"
     if cmonum != False:
         inf_cat = inf_cat+"[[Category:"+cmonum+"]]\n"
     if ctipus != False:

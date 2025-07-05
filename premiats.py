@@ -1,5 +1,10 @@
 #-*- coding: utf-8 -*-
 
+# posa categories de premiats a partir de Wikidata.
+# La versió actual només tracta persones. 
+# Pendent fer servir les categories abans excloses (encara hi ha la llista i el patró)
+# per posar coses que no són persones a les altres.
+
 import pywikibot as pwb
 from pywikibot import pagegenerators
 from SPARQLWrapper import SPARQLWrapper, JSON
@@ -17,30 +22,31 @@ def get_results(endpoint_url, query):
     return sparql.query().convert()
 
 def get_catprals():
-    print("Carregant categories de premis de Wikidata")
-    query="""# Categories de premis
+    print("Carregant categories principals de premis de Wikidata")
+    query="""# Categories principals de premis
     SELECT DISTINCT ?premi ?cat ?categoria 
     WHERE {
       ?persona wdt:P166 ?premi.
+      ?persona wdt:P31 wd:Q5.
       ?premi wdt:P910 ?cat.
-        ?categoria schema:about ?cat.
-        ?categoria schema:isPartOf <https://ca.wikipedia.org/>.
-   }"""
+      MINUS {?premi wdt:P2517 []}
+      ?categoria schema:about ?cat.
+      ?categoria schema:isPartOf <https://ca.wikipedia.org/>.
+    }"""
     endpoint_url = "https://query.wikidata.org/sparql"
     results = get_results(endpoint_url, query)
     wd = results["results"]["bindings"]
     return (wd)
 
 def get_catpremiats():
-    print("Carregant categories de premis de Wikidata")
-    query="""# Categories de premis
+    print("Carregant categories de receptors de premis de Wikidata")
+    query="""# Categories de receptors de premis
     SELECT DISTINCT ?premi ?cat ?categoria 
     WHERE {
-      ?persona wdt:P166 ?premi.
       ?premi wdt:P2517 ?cat.
         ?categoria schema:about ?cat.
         ?categoria schema:isPartOf <https://ca.wikipedia.org/>.
-   }"""
+    }"""
     endpoint_url = "https://query.wikidata.org/sparql"
     results = get_results(endpoint_url, query)
     wd = results["results"]["bindings"]
@@ -67,12 +73,14 @@ def dicccategories():
             diccprem[qpremi] = urllib.parse.unquote(premi["categoria"]["value"].replace("https://ca.wikipedia.org/wiki/","")).replace("_"," ")
     return(diccpral, diccprem)
 
+# restringit a persones
 def get_premiats():
     print("Carregant articles de premiats de Wikidata")
     query="""# Articles de premiats
-    SELECT DISTINCT ?persona ?article ?premi 
+    SELECT DISTINCT ?persona ?article ?premi ?inst
     WHERE {
       ?persona wdt:P166 ?premi.
+      ?persona wdt:P31 ?inst.
         ?article schema:about ?persona.
         ?article schema:isPartOf <https://ca.wikipedia.org/>.
     }"""
@@ -88,6 +96,11 @@ def classifica(res, qprem=[]):
     for registre in res:
         article = registre["article"]["value"].replace("https://ca.wikipedia.org/wiki/", "")
         article = urllib.parse.unquote(article).replace("_"," ")
+        if "inst" in registre.keys():
+            inst = registre["inst"]["value"].replace("http://www.wikidata.org/entity/","")
+            if inst != "Q5":
+                print ("No és una persona:", registre)
+                continue
         if "premi" in registre.keys():
             premi = registre["premi"]["value"].replace("http://www.wikidata.org/entity/","")
             if premi in qprem:
@@ -120,10 +133,10 @@ def posacat(cat, catsno=[], arts=[], site=pwb.Site('ca')):
         pag=pwb.Page(site, art)
         try:
             textvell=pag.get()
-        except pwb.IsRedirectPage:
+        except pwb.exceptions.IsRedirectPageError:
             print("Redirecció")
             continue
-        except pwb.NoPage:
+        except pwb.exceptions.NoPageError:
             print("La pàgina no existeix")
             continue
         if re.search("\[\["+cat+"(\|.*)?\]\]", textvell):
@@ -209,13 +222,19 @@ try:
 except FileNotFoundError:
     print ("Fitxer de categories no trobat. Començant de nou.")
     diccatvell={}
+# versió de quan la query no filtrava el que no són persones
 notocar = ["Categoria:Grammy a l'àlbum de l'any", "Categoria:Pel·lícules guanyadores de l'Ós d'Or",
 "Categoria:BAFTA", "Categoria:Guanyadors del Globus d'Or al millor director",
+"Categoria:Guanyadores del Globus d'Or a la millor actriu secundària",
 "Categoria:Guanyadors del Premi Booker", "Categoria:Premis Ramon Llull de novel·la",
 "Categoria:Premis de traducció","Categoria:Figueres", "Categoria:Copa Intertoto de la UEFA",
 "Categoria:Premis", "Categoria:Guanyadors del Premi Laurence Olivier",
 "Categoria:Guanyadors del Premi Tony"]
-notocarreg = "(Categoria:(Jocs Olímpics|Festival|Foment|.*(premi Oscar|[Pp]el·lícules|BAFTA|Goncourt|[Pp]remi Goya))|Globus d'Or"
+notocarreg = "Categoria:(Jocs Olímpics|Festival|Foment|.*(premi Oscar|[Pp]el·lícules|BAFTA|Goncourt|[Pp]remi Goya)|Globus d.Or|actriu|cançó)"
+# versió que anul·la filtres de categories perquè ja s'elimina el que no són persones
+notocar = []
+notocarreg = "Categoria:Pel·lícules"
+#
 diccpral, diccprem = dicccategories()
 #print(diccpral)
 #print(diccprem)
@@ -257,6 +276,7 @@ total = len(premisi)
 icat=0
 diccat={}
 lencats = 0
+inferrors=""
 for premi in list(premisi.keys()):
     icat=icat+1
     print(icat,"/", total, premi)
@@ -273,6 +293,11 @@ for premi in list(premisi.keys()):
         else:
             catred = []
     print(catposa, catred)
+    # comprovació treta d'universitats.py que s'hauria d'adaptar aquí
+    #if not(re.match("[Cc]ategor(ia|y):", catposa)):
+    #    print("No és una categoria")
+    #    inferrors = inferrors + cat + " no és una categoria\n"
+    #    continue
     if catposa in notocar or re.search(notocarreg, catposa):
         print("Categoria complicada. No faig res.")
         continue
@@ -292,4 +317,6 @@ for premi in list(premisi.keys()):
             lencats=len(diccat)
             desadicc(diccatvell)
         posacat(catposa, catred, arts=posar)
+print("Total:",total)
+print(inferrors)
         

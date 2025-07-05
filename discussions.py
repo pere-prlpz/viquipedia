@@ -98,7 +98,7 @@ for urlweb in pagweb:
                 textnet=textnet.replace(u"\n","")
                 llargnet=len(textnet)
                 hihatrad=re.search(re_trad,text)
-                if hihatrad and llargnet < 25:
+                if hihatrad and llargnet < 35:
                         print (tit, u"Només etiqueta")
                         linia=u"*[[{}]] (només conté l'etiqueta de còpia o traducció)\n".format(tit)
                         informeno = informeno + linia
@@ -117,6 +117,6 @@ for urlweb in pagweb:
 informe=informe+informeno
 paginforme.put(informe,u"Robot inclou discussions recents")
 
-print(informe)
-print(informeno)
+#print(informe)
+#print(informeno)
 print("final")

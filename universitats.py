@@ -163,10 +163,10 @@ def posacat(cat, arts, site=pwb.Site('ca')):
         pag=pwb.Page(site, art)
         try:
             textvell=pag.get()
-        except pwb.IsRedirectPage:
+        except pwb.exceptions.IsRedirectPageError:
             print("Redirecció")
             continue
-        except pwb.NoPage:
+        except pwb.exceptions.NoPageError:
             print("La pàgina no existeix")
             continue
         if re.search("\[\["+cat+"\]\]", textvell):
@@ -370,8 +370,14 @@ total = 0
 tots= set([])
 icat = 0
 ncats = len(unisi)
+inferrors=""
 for cat in unisi:
+    icat = icat+1
     print(icat,"/", ncats, cat)
+    if not(re.match("[Cc]ategor(ia|y):", cat)):
+        print("No és una categoria")
+        inferrors = inferrors + cat + " no és una categoria\n"
+        continue
     art0, cat0, diccat, diccatvell, articles, cat1=miracat(cat, dicc=diccat, diccvell=diccatvell, vell=True, prof=5)
     #print(articles)
     print(len(articles))
@@ -398,3 +404,4 @@ for cat in unisi:
             diccatvell[cat]["art0"].extend(posar)        
 print("Total:",total)
 print("Diferents:", len(tots))
+print(inferrors)
