@@ -1,6 +1,8 @@
 #-*- coding: utf-8 -*-
 #
 # Script per ajudar a crear categories per comarca a Commons (en construcció)
+# Exemple:
+# python catcomarques.py "railway bridges" Bridges "Rail transport" -percom
 
 import pywikibot as pwb
 from pywikibot import pagegenerators
@@ -38,7 +40,6 @@ def link_creacat(catpral, contingut=""):
 
 # el programa comença aquí
 arguments = sys.argv[1:]  # per fer: arguments per percom i prefsort
-rel = arguments[0]
 if "-percom" in arguments:
     percom=True
     arguments.remove("-percom")
@@ -49,6 +50,7 @@ if "-of" in arguments:
     arguments.remove("-of")
 else:
     pref=""
+rel = arguments[0]
 altres = arguments[1:]
 comarques = ["Moianès", "Lluçanès", "Priorat", "Terra Alta", "Ribera d'Ebre", 
 "Conca de Barberà", "Montsià", "Alt Camp", "Baix Ebre", "Baix Penedès", "Baix Camp", 

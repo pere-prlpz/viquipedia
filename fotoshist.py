@@ -6,7 +6,8 @@ from pywikibot import pagegenerators
 
 site=pwb.Site('commons')
 paginforme = pwb.Page(site, "User:PereBot/taller")
-catnom="Category:Photographs by Josep Domènech i Sàbat"
+#catnom="Category:Photographs by Josep Domènech i Sàbat"
+catnom="Category:Photographs by unknown author in Memòria Digital de Catalunya"
 cat = pwb.Category(site,catnom)
 print(cat)
 articles = pagegenerators.CategorizedPageGenerator(cat)
@@ -23,7 +24,10 @@ for article in articles:
     titol = titol.replace("{{ca|", "")
     titol = titol.replace("}}", "")
     print(titol)
-    lloc = re.sub("^(.*\n)*.*depicted place *= ?(.*)\n(.*\n)*.*$", "\\2", text)
+    if re.search("depicted place", text):
+        lloc = re.sub("^(.*\n)*.*depicted place *= ?(.*)\n(.*\n)*.*$", "\\2", text)
+    else:
+        lloc = ""
     print(lloc)
     lloc = re.sub("^(.*?);.*$","\\1", lloc)
     #print(lloc)

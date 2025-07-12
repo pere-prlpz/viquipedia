@@ -213,10 +213,10 @@ def cat_monument(dicc):
 
 def nom_commons(dicc):
     nomen = dicc["itemLabelen"]["value"]
-    if re.match("^[Bb]uilding in ", nomen):
+    if re.match("^[Bb]uildings? in ", nomen):
         nc = nomen
-        if re.match("^[Bb]uilding in (carrer del Rec|[Rr]ambla del Poblenou),", nomen): # ampliar amb els carrers que s'hagin de deixar
-            nc = re.sub("^[Bb]uilding in ", "", nc)
+        if re.match("^[Bb]uildings? in (carrer del Rec|[Rr]ambla del Poblenou),", nomen): # ampliar amb els carrers que s'hagin de deixar
+            nc = re.sub("^[Bb]uildings? in ", "", nc)
         nc = re.sub("^[Bb]uildings? in [Cc]arrer (del |de (l'|la ))", "", nc)
         nc = re.sub("^[Bb]uildings? in [Cc]arrer (de |d')", "", nc)
         nc = re.sub("^[Bb]uildings? in [Cc]arrer ", "", nc)
