@@ -18,8 +18,9 @@ def llegeix_petscan(url):
     articles = [(x["title"],x["metadata"]["wikidata"]) for x in table]
     return (articles)
 
-def miracat(catnom, site=pwb.Site('ca'), dicc={}, diccvell={}, vell=False, prof=20):
-    print(catnom, prof)
+def miracat(catnom, site=pwb.Site('ca'), dicc={}, diccvell={}, vell=False, prof=20, verbose=False):
+    if verbose:
+        print(catnom, prof)
     if catnom in dicc:
         font = "dicc nou"
         art0 = dicc[catnom]["art0"]
@@ -44,14 +45,16 @@ def miracat(catnom, site=pwb.Site('ca'), dicc={}, diccvell={}, vell=False, prof=
     art1 = set(art0)
     cat1 = set(cat0)
     if prof<=0:
-        print("Arribat al límit de profunditat")
-        print("art0:", len(art0), "cat0:", len(cat0), "dicc:", len(dicc), "art1:", len(art1), "cat1", len(cat1), font, catnom)
+        if verbose:
+            print("Arribat al límit de profunditat")
+            print("art0:", len(art0), "cat0:", len(cat0), "dicc:", len(dicc), "art1:", len(art1), "cat1", len(cat1), font, catnom)
         return(art0, cat0, dicc, diccvell, art1, cat1)
     for cat in cat0:
         art10,cat10,dicc,diccvell,art11,cat11=miracat(cat, dicc=dicc, diccvell=diccvell, vell=vell, prof=prof-1)
         art1 = art1.union(art11)
         cat1 = cat1.union(cat11)
-    print("art0:", len(art0), "cat0:", len(cat0), "dicc:", len(dicc), "art1:", len(art1), "cat1", len(cat1), font, catnom)
+    if verbose:
+        print("art0:", len(art0), "cat0:", len(cat0), "dicc:", len(dicc), "art1:", len(art1), "cat1", len(cat1), font, catnom)
     return(art0, cat0, dicc, diccvell, art1, cat1)
 
 def desadicc(diccatvell):
@@ -74,6 +77,7 @@ def posacats(cats, catsno=[], arts=[], site=pwb.Site('ca')):
             print("La pàgina no existeix")
             continue
         text0 = textvell
+        textnou = textvell # per evitar errors si realment no posa la categoria
         for cat in cats:
             if re.search("\[\["+cat+"(\|.*)?\]\]", textvell):
                 print("La categoria ja hi és")
@@ -89,7 +93,7 @@ def posacats(cats, catsno=[], arts=[], site=pwb.Site('ca')):
             else:
                 print ("No trobat on posar la categoria")
                 continue
-        if textnou != text0 and False: # anul·lat (només per proves)
+        if False and textnou != text0: # anul·lat (només per proves)
             pagprova = pwb.Page(site, "Usuari:PereBot/taller")
             sumari = "Robot copia [["+art+"]] tot fent proves"
             pagprova.put(textnou, sumari)
@@ -115,7 +119,11 @@ def posacats(cats, catsno=[], arts=[], site=pwb.Site('ca')):
 
 def posaqcats(cats, catsno=[], arts=[], nqcat=r"C:\Users\Pere\Documents\perebot\qcat.txt"): # catsno no implementat
     cats = [re.sub("Categoria:","",cat) for cat in cats]
+    catsno = [re.sub("Categoria:","",cat) for cat in catsno]
     tcats = "|".join(["+Category:"+cat for cat in cats])
+    if len(catsno)>0:
+        tcatsno = "|".join(["-Category:"+cat for cat in catsno])
+        tcats = tcats+"|"+tcatsno
     comandes = "\n".join([art+"|"+tcats for art in arts])+"\n"
     with open(nqcat, "a", encoding='utf-8') as f:
         f.write(comandes)
@@ -149,6 +157,27 @@ def claimsadata(claims):
         return(anys, precisio, qualificadors)
     except AttributeError:
         return([], [], set())
+
+def segle(nany):
+    s = int((abs(nany)-1)/100)
+    if s>22:
+        return("")
+    numsrom = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII", "XIX", "XX", "XXI", "XXII", "XXIII"]
+    seg = numsrom[s]
+    if nany < 0:
+        seg = seg+" aC"
+    return (seg)
+
+def segles(params): # params és (anys, precisions, qualificadors)
+    print(params)
+    if len(params)==0 or len(params[0])==0 or (len(params[1])>0 and min(params[1])<7):
+        return ("")
+    segmin = segle(min(params[0]))
+    segmax = segle(max(params[0]))
+    if segmin==segmax:
+        return(segmin)
+    else:
+        return ("")
 
 # el programa comença aquí
 arguments = sys.argv[1:] 
@@ -201,6 +230,8 @@ for artwd in artwds:
     titol = artwd[0]
     qid = artwd[1]
     print(titol, qid)
+    paramnaix = ()
+    parammort = ()
     item = pwb.ItemPage(repo, qid)
     #print(item)
     try:
@@ -215,6 +246,7 @@ for artwd in artwds:
             print("preparem naixement")
             anys, precisions, qualificadors = claimsadata(item.claims['P569'])
             print(anys, precisions, qualificadors)
+            paramnaix = (anys, precisions, qualificadors)
             if len(set(anys))>1:
                 print("dates diferents", anys) 
                 infmultiples = infmultiples + "# [["+titol+"]] "+str(anys)+"\n"
@@ -261,6 +293,7 @@ for artwd in artwds:
             print("preparem defunció")
             anys, precisions, qualificadors = claimsadata(item.claims['P570'])
             print(anys, precisions, qualificadors)
+            parammort = (anys, precisions, qualificadors)
             if len(set(anys))>1:
                 print("dates diferents", anys, ierrdesat) 
                 infmultiplesm = infmultiplesm + "# [["+titol+"]] "+str(anys)+"\n"
@@ -302,11 +335,61 @@ for artwd in artwds:
                     else:
                         print("posar", titnet, "a", titcat)
                         posar.append(titcat)
+    segnaix = segles(paramnaix)
+    segmort = segles(parammort)
+    print(segnaix, segmort)
+    catsegnaix = "Categoria:Biografies del segle "+segnaix
+    catsegmort = "Categoria:Biografies del segle "+segmort
+    treure = []
+    if len(posar)>0:
+        if re.match("Categoria:Naixements", posar[0]):
+            treure.append(catsegnaix)
+        if re.match("Categoria:Morts", posar[-1]):
+            treure.append(catsegmort)
+    if len(posar)==0:
+        if segnaix != "":
+            titcat = catsegnaix
+            print(titcat)
+            art0, cat0, diccat, diccatvell, articles, cat1=miracat(titcat, dicc=diccat, diccvell=diccatvell, vell=True, prof=3)
+            #print(art0)
+            #print(articles)
+            if titnet in articles:
+                print("Ja hi és")
+                continue
+            else:
+                print("Provisionalment, no hi és")
+                art0, cat0, diccat, diccatvell, articles, cat1=miracat(titcat, dicc=diccat, diccvell=diccatvell, vell=False, prof=3)
+                if titnet in articles:
+                    print("Però reament sí que hi és")
+                    continue
+                else:
+                    print("posar", titnet, "a", titcat)
+                    posar.append(titcat)
+        if segmort != "" and segmort != segnaix:
+            titcat = catsegmort
+            print(titcat)
+            art0, cat0, diccat, diccatvell, articles, cat1=miracat(titcat, dicc=diccat, diccvell=diccatvell, vell=True, prof=3)
+            #print(art0)
+            #print(articles)
+            if titnet in articles:
+                print("Ja hi és")
+                continue
+            else:
+                print("Provisionalment, no hi és")
+                art0, cat0, diccat, diccatvell, articles, cat1=miracat(titcat, dicc=diccat, diccvell=diccatvell, vell=False, prof=3)
+                if titnet in articles:
+                    print("Però reament sí que hi és")
+                    continue
+                else:
+                    print("posar", titnet, "a", titcat)
+                    posar.append(titcat)
+    print("posar:", posar)
+    print("treure:", treure)
     if len(posar)>0:
         if qcat:
-            posaqcats(posar,  arts=[titnet], nqcat=nqcat)
+            posaqcats(posar, catsno = treure, arts=[titnet], nqcat=nqcat)
         else:
-            posacats(posar, arts=[titnet])
+            posacats(posar, catsno = treure, arts=[titnet])
     if ierrdesat>40:
         print("Desem informe d'errors")
         desainf(["== Naixements ==\n\n",infmanquen(diccmanquen), infqualifs, infmultiples,"== Defuncions ==\n\n",infmanquen(diccmanquenm), infqualifsm, infmultiplesm], acabat=False)

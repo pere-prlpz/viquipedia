@@ -73,9 +73,12 @@ def get_catnascuts():
     return (wd)
 
 def segle(nany):
-    s = int((nany-1)/100)
-    numsrom = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII", "XIX", "XX", "XXI"]
-    return (numsrom[s])
+    s = int((abs(nany)-1)/100)
+    numsrom = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII", "XIX", "XX", "XXI", "XXII", "XXIII"]
+    seg = numsrom[s]
+    if nany < 0:
+        seg = seg+" aC"
+    return (seg)
 
 def catmortany(nany):
     nom = "Morts el "+str(nany)
@@ -93,7 +96,7 @@ def catnascutany(nany):
     seg = segle(nany)
     descr = "'''[[:Categoria:Naixements del "+str(nany)+"]]'''\n\n"
     unitat = nany % 10
-    desenes = (nany-unitat)/10
+    desenes = int((nany-unitat)/10)
     catwikitext = """{{NascutsAnyCat|"""+str(desenes)+"""|"""+str(unitat)+"""}}
 {{commonscat-inline}}
 {{Consultes per gènere}}
