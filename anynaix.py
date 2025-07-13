@@ -228,7 +228,7 @@ for artwd in artwds:
                 print(qualificadors)
                 infqualifs = infqualifs + "# [["+titol+"]] "+str(qualificadors)+"\n"
                 ierrdesat = ierrdesat+1
-            elif anys[0] < 1300 and anys[0] not in [ 1283, 1273, 1259, 1215]:
+            elif anys[0] < 1300 and anys[0] not in [ 1297, 1296, 1293, 1292, 1289, 1288, 1283, 1282,1281, 1277, 1273, 1268, 1267, 1261, 1259, 1258, 1257, 1256, 1254, 1247, 1243, 1239, 1236, 1232, 1221, 1216, 1215, 1213, 1212, 1208]:
                 nany = anys[0]
                 print("Massa antic per tenir categoria", ierrdesat)
                 if nany in diccmanquen:
@@ -263,7 +263,7 @@ for artwd in artwds:
             print(anys, precisions, qualificadors)
             if len(set(anys))>1:
                 print("dates diferents", anys, ierrdesat) 
-                infmultiplesm = infmultiples + "# [["+titol+"]] "+str(anys)+"\n"
+                infmultiplesm = infmultiplesm + "# [["+titol+"]] "+str(anys)+"\n"
                 ierrdesat = ierrdesat+1
             elif len(set(anys))==0:
                 print("sense data o valor desconegut")
@@ -272,9 +272,9 @@ for artwd in artwds:
             elif len(qualificadors-{"P31","P7452"})>0:
                 print("Té qualificadors")
                 print(qualificadors)
-                infqualifsm = infqualifs + "# [["+titol+"]] "+str(qualificadors)+"\n"
+                infqualifsm = infqualifsm + "# [["+titol+"]] "+str(qualificadors)+"\n"
                 ierrdesat = ierrdesat+1
-            elif anys[0] < 1345:
+            elif anys[0] < 1238 and anys[0] not in [1016, 1096,1098, 1137, 1146, 1154, 1192, 1194, 1203, 1207, 1221, 1234, 1236, 1241, 1247, 1252, 1264, 1271, 1282, 1284, 1285, 1286, 1288, 1296, 1302, 1305, 1308, 1313, 1326, 1327, 1328, 1333, 1342, 1343, 1344]:
                 nany = anys[0]
                 print("Massa antic per tenir categoria", ierrdesat)
                 if nany in diccmanquenm:
