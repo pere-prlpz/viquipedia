@@ -181,6 +181,11 @@ def segles(params): # params és (anys, precisions, qualificadors)
 
 # el programa comença aquí
 arguments = sys.argv[1:] 
+sensesegle = False   # editar articles sense segle i no tots els articles sense any
+if "-sensesegle" in arguments:
+    sensesegle=True
+    arguments.remove("-sensesegle")
+qcnet = False   # netejar el fitxer quickcategories
 qcat = False   # fer servir quickcategories en comptes d'editar directament
 if "-qcat" in arguments:
     qcat=True
@@ -196,10 +201,16 @@ if qcnet:
         f.close()
 site=pwb.Site('ca')
 repo = site.data_repository()
-url = "https://petscan.wmcloud.org/?ores_prediction=any&manual_list=&namespace_conversion=keep&labels_any=&after=&common_wiki_other=&cb_labels_yes_l=1&output_limit=&source_combination=&active_tab=tab_wikidata&search_max_results=500&wikidata_prop_item_use=P569%2CQ5&templates_any=&langs_labels_no=&min_sitelink_count=&wpiu=all&max_age=&ores_prob_to=&search_query=&language=ca&negcats=Biografies+per+data+de+naixement&project=wikipedia&depth=12&labels_no=&sortorder=ascending&referrer_url=&outlinks_yes=&interface_language=en&search_filter=&edits%5Bflagged%5D=both&sortby=none&cb_labels_no_l=1&wikidata_source_sites=&edits%5Bbots%5D=both&ores_type=any&before=&common_wiki=auto&since_rev0=&ns%5B0%5D=1&pagepile=&categories=Biografies&larger=&format=json&langs_labels_any=&doit="
-artsnaix = llegeix_petscan(url)
-url = "https://petscan.wmcloud.org/?links_to_no=&max_sitelink_count=&cb_labels_yes_l=1&edits%5Bflagged%5D=both&labels_no=&output_compatability=catscan&subpage_filter=either&langs_labels_no=&since_rev0=&wikidata_label_language=&page_image=any&larger=&cb_labels_any_l=1&show_disambiguation_pages=both&langs_labels_any=&manual_list=&templates_no=&negcats=Biografies+per+data+de+defunci%C3%B3&search_max_results=500&wikidata_prop_item_use=P570%2CQ5&sortby=none&search_query=&ns%5B0%5D=1&sortorder=ascending&active_tab=tab_wikidata&cb_labels_no_l=1&rxp_filter=&sitelinks_no=&wikidata_item=no&project=wikipedia&categories=Biografies&links_to_any=&labels_any=&show_redirects=both&min_sitelink_count=&wpiu=all&language=ca&namespace_conversion=keep&ores_prediction=any&interface_language=en&depth=12&format=json&minlinks=&doit="
-artsmort = llegeix_petscan(url)
+if sensesegle:
+    url = "https://petscan.wmcloud.org/?ores_prediction=any&manual_list=&namespace_conversion=keep&labels_any=&after=&common_wiki_other=&cb_labels_yes_l=1&output_limit=&source_combination=&active_tab=tab_wikidata&search_max_results=500&wikidata_prop_item_use=P569%2CQ5&templates_any=&langs_labels_no=&min_sitelink_count=&wpiu=all&max_age=&ores_prob_to=&search_query=&language=ca&negcats=Biografies+per+segle&project=wikipedia&depth=12&labels_no=&sortorder=ascending&referrer_url=&outlinks_yes=&interface_language=en&search_filter=&edits%5Bflagged%5D=both&sortby=none&cb_labels_no_l=1&wikidata_source_sites=&edits%5Bbots%5D=both&ores_type=any&before=&common_wiki=auto&since_rev0=&ns%5B0%5D=1&pagepile=&categories=Biografies&larger=&format=json&langs_labels_any=&doit="
+    artsnaix = llegeix_petscan(url)
+    url = "https://petscan.wmcloud.org/?links_to_no=&max_sitelink_count=&cb_labels_yes_l=1&edits%5Bflagged%5D=both&labels_no=&output_compatability=catscan&subpage_filter=either&langs_labels_no=&since_rev0=&wikidata_label_language=&page_image=any&larger=&cb_labels_any_l=1&show_disambiguation_pages=both&langs_labels_any=&manual_list=&templates_no=&negcats=Biografies+per+segle&search_max_results=500&wikidata_prop_item_use=P570%2CQ5&sortby=none&search_query=&ns%5B0%5D=1&sortorder=ascending&active_tab=tab_wikidata&cb_labels_no_l=1&rxp_filter=&sitelinks_no=&wikidata_item=no&project=wikipedia&categories=Biografies&links_to_any=&labels_any=&show_redirects=both&min_sitelink_count=&wpiu=all&language=ca&namespace_conversion=keep&ores_prediction=any&interface_language=en&depth=12&format=json&minlinks=&doit="
+    artsmort = llegeix_petscan(url)
+else:
+    url = "https://petscan.wmcloud.org/?ores_prediction=any&manual_list=&namespace_conversion=keep&labels_any=&after=&common_wiki_other=&cb_labels_yes_l=1&output_limit=&source_combination=&active_tab=tab_wikidata&search_max_results=500&wikidata_prop_item_use=P569%2CQ5&templates_any=&langs_labels_no=&min_sitelink_count=&wpiu=all&max_age=&ores_prob_to=&search_query=&language=ca&negcats=Biografies+per+data+de+naixement&project=wikipedia&depth=12&labels_no=&sortorder=ascending&referrer_url=&outlinks_yes=&interface_language=en&search_filter=&edits%5Bflagged%5D=both&sortby=none&cb_labels_no_l=1&wikidata_source_sites=&edits%5Bbots%5D=both&ores_type=any&before=&common_wiki=auto&since_rev0=&ns%5B0%5D=1&pagepile=&categories=Biografies&larger=&format=json&langs_labels_any=&doit="
+    artsnaix = llegeix_petscan(url)
+    url = "https://petscan.wmcloud.org/?links_to_no=&max_sitelink_count=&cb_labels_yes_l=1&edits%5Bflagged%5D=both&labels_no=&output_compatability=catscan&subpage_filter=either&langs_labels_no=&since_rev0=&wikidata_label_language=&page_image=any&larger=&cb_labels_any_l=1&show_disambiguation_pages=both&langs_labels_any=&manual_list=&templates_no=&negcats=Biografies+per+data+de+defunci%C3%B3&search_max_results=500&wikidata_prop_item_use=P570%2CQ5&sortby=none&search_query=&ns%5B0%5D=1&sortorder=ascending&active_tab=tab_wikidata&cb_labels_no_l=1&rxp_filter=&sitelinks_no=&wikidata_item=no&project=wikipedia&categories=Biografies&links_to_any=&labels_any=&show_redirects=both&min_sitelink_count=&wpiu=all&language=ca&namespace_conversion=keep&ores_prediction=any&interface_language=en&depth=12&format=json&minlinks=&doit="
+    artsmort = llegeix_petscan(url)
 artwds = set(artsnaix+artsmort)
 print(len(artsnaix), len(artsmort), len(artwds))
 #print(artwds[0:min(10,len(artwds))])
@@ -241,7 +252,7 @@ for artwd in artwds:
         continue
     if item.claims:
         titnet=titol.replace("_"," ")
-        # anys neixement
+        # anys naixement
         if artwd in artsnaix and 'P569' in item.claims:
             print("preparem naixement")
             anys, precisions, qualificadors = claimsadata(item.claims['P569'])
@@ -255,16 +266,24 @@ for artwd in artwds:
                 print("sense data o valor desconegut")
             elif min(precisions) < 9:
                 print("Data imprecisa", precisions)
-            elif len(qualificadors-{"P31","P7452"})>0:
+            elif len(qualificadors-{"P31","P7452","P4241"})>0:
                 print("Té qualificadors")
                 print(qualificadors)
                 infqualifs = infqualifs + "# [["+titol+"]] "+str(qualificadors)+"\n"
                 ierrdesat = ierrdesat+1
-            elif anys[0] < 1300 and anys[0] not in [ 1297, 1296, 1293, 1292, 1289, 1288, 1283, 1282,1281, 1277, 1273, 1268, 1267, 1261, 1259, 1258, 1257, 1256, 1254, 1247, 1243, 1239, 1236, 1232, 1221, 1216, 1215, 1213, 1212, 1208]:
+            elif anys[0] < 1268 and anys[0] not in [156,178,482,498,594, 622, 718,778, 836,844,912,937,953,963,966,997,998,
+            1007,1008,1009,1012,1016,1017,1018,1024,1029,1043,1048,1053,1054,1056,1057,1066,
+            1073,1074,1078,1082,1083,1086,1088,1092, 1093,1096,1098,
+            1102,1103,1109,1114,1116, 1118,1126,1127,1128,1132,1133,1134,1136,1138,1141, 1143,1146,1148,1149,
+            1152,1154,1156,1157,1158,1161,1163,1164,1165,1166,1168,1169,1170,1172,1173,1174,1175,1176,
+            1178,1179,1182,1186,1187, 1192, 1194, 1191,1195,1197,1198,1199, 
+            1201, 1202,1203, 1204, 1206, 1207, 1211,1212,1213, 1214, 1217, 1218,1219,1221,1225, 1227, 1231,1232,1234, 1235, 
+            1236, 1238, 1239, 1241, 1242, 1243, 1245, 1247, 1248, 1249, 1251, 1252,1254, 1256,1258,1262, 1264, 1266]:
                 nany = anys[0]
                 print("Massa antic per tenir categoria", ierrdesat)
                 if nany in diccmanquen:
                     diccmanquen[nany].append(titnet)
+                    diccmanquen[nany].sort()
                 else:
                     diccmanquen[nany] = [titnet]
                 ierrdesat = ierrdesat+1
@@ -273,7 +292,7 @@ for artwd in artwds:
                 print(nany)
                 titcat = "Categoria:Naixements del "+str(nany)
                 print(titcat)
-                art0, cat0, diccat, diccatvell, articles, cat1=miracat(titcat, dicc=diccat, diccvell=diccatvell, vell=True, prof=3)
+                art0, cat0, diccat, diccatvell, articles, cat1=miracat(titcat, dicc=diccat, diccvell=diccatvell, vell=True, prof=5)
                 #print(art0)
                 #print(articles)
                 if titnet in articles:
@@ -281,7 +300,7 @@ for artwd in artwds:
                     continue
                 else:
                     print("Provisionalment, no hi és")
-                    art0, cat0, diccat, diccatvell, articles, cat1=miracat(titcat, dicc=diccat, diccvell=diccatvell, vell=False, prof=3)
+                    art0, cat0, diccat, diccatvell, articles, cat1=miracat(titcat, dicc=diccat, diccvell=diccatvell, vell=False, prof=5)
                     if titnet in articles:
                         print("Però reament sí que hi és")
                         continue
@@ -302,16 +321,34 @@ for artwd in artwds:
                 print("sense data o valor desconegut")
             elif min(precisions) < 9:
                 print("Data imprecisa", precisions)
-            elif len(qualificadors-{"P31","P7452"})>0:
+            elif len(qualificadors-{"P31","P7452","P4241"})>0:
                 print("Té qualificadors")
                 print(qualificadors)
                 infqualifsm = infqualifsm + "# [["+titol+"]] "+str(qualificadors)+"\n"
                 ierrdesat = ierrdesat+1
-            elif anys[0] < 1238 and anys[0] not in [1016, 1096,1098, 1137, 1146, 1154, 1192, 1194, 1203, 1207, 1221, 1234, 1236, 1241, 1247, 1252, 1264, 1271, 1282, 1284, 1285, 1286, 1288, 1296, 1302, 1305, 1308, 1313, 1326, 1327, 1328, 1333, 1342, 1343, 1344]:
+            elif anys[0] < 1013 and anys[0] not in [14,1723,32,33,36,37,38,42,47,48,54,59,62,65,66,68,69,79,96,
+            118,182,184,189,192,193,197,199,
+            208,211,212,217,218,219,220,221,222,223,228,234,235,238,249,250,251,253,254,255,258,261,264,268,269,271,284,
+            303,304,306,309,312,313,337,361,362,376,378,383,384,386,388,394,399,
+            406,407,411,412,413,449,453,484,498,
+            514,534,548,565,572,574,581,584,590,593,599, 602,624,627,629,631,632,636,638,641,642,647,652,653,654,657,658,
+            662,664,672,673,676,679,683,685,686,687,689,692,695,697,
+            705,706,707,714,715,716,717,718,719,721,732,737,738,
+            741,743,744,748,756,761,762,767,768,769,783,784,786,
+            802,803,806,809,811,812,817,818,819,821,823,824,825,826,827,828,834,836,838,839,840,
+            841,842,843,844,845,846,847,851,852,853,855,858,
+            861,862,863,864,866,867,870,873,874,875,876,877,879,882,883,884,886,888,890,892,893,896,897,898,899,
+            900,901,902,903,904,907,908,910,911,912,913,914,916,918,920,
+            923,924,925,926,927,929,931,933,934,935,936,939,940,942,943,945,946,947,948,
+            952,954,955,957,958,961,962,963,965,966,967,968,970,971,972,973,975,976,977,978,979,
+            981, 987,989,983,984,985,988,998,
+            990,991,992,993,994,995,997,999,1000,1003,1004,1005,1012,1008, 1009, 
+            1010,1011,1014,1015,1016,1017,1018,1019,1020,1021,1022,1023]:
                 nany = anys[0]
                 print("Massa antic per tenir categoria", ierrdesat)
                 if nany in diccmanquenm:
                     diccmanquenm[nany].append(titnet)
+                    diccmanquenm[nany].sort()
                 else:
                     diccmanquenm[nany] = [titnet]
                 ierrdesat = ierrdesat+1
@@ -320,7 +357,7 @@ for artwd in artwds:
                 print(nany)
                 titcat = "Categoria:Morts el "+str(nany)
                 print(titcat)
-                art0, cat0, diccat, diccatvell, articles, cat1=miracat(titcat, dicc=diccat, diccvell=diccatvell, vell=True, prof=3)
+                art0, cat0, diccat, diccatvell, articles, cat1=miracat(titcat, dicc=diccat, diccvell=diccatvell, vell=True, prof=5)
                 #print(art0)
                 #print(articles)
                 if titnet in articles:
@@ -328,7 +365,7 @@ for artwd in artwds:
                     continue
                 else:
                     print("Provisionalment, no hi és")
-                    art0, cat0, diccat, diccatvell, articles, cat1=miracat(titcat, dicc=diccat, diccvell=diccatvell, vell=False, prof=3)
+                    art0, cat0, diccat, diccatvell, articles, cat1=miracat(titcat, dicc=diccat, diccvell=diccatvell, vell=False, prof=5)
                     if titnet in articles:
                         print("Però reament sí que hi és")
                         continue
@@ -390,7 +427,7 @@ for artwd in artwds:
             posaqcats(posar, catsno = treure, arts=[titnet], nqcat=nqcat)
         else:
             posacats(posar, catsno = treure, arts=[titnet])
-    if ierrdesat>40:
+    if ierrdesat>1500:
         print("Desem informe d'errors")
         desainf(["== Naixements ==\n\n",infmanquen(diccmanquen), infqualifs, infmultiples,"== Defuncions ==\n\n",infmanquen(diccmanquenm), infqualifsm, infmultiplesm], acabat=False)
         ierrdesat=0

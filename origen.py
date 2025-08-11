@@ -5,6 +5,8 @@
 # -1 (menys u, no menys L) Mira també les divisons administratives de cada lloc (amb P131)
 #     però només mira un nivell, o sigui, les directament relacionades amb P131.
 # -2 i més números fins a -5: mira el nombre de nivells especificat
+# -noordenis: no ordena les categories abans de començar (alternativament, comença per les petites)
+# -creacat: no implementat
 
 import pywikibot as pwb
 from pywikibot import pagegenerators
@@ -196,7 +198,7 @@ def posacat(cat, catsno=[], arts=[], site=pwb.Site('ca')):
         pag=pwb.Page(site, art)
         try:
             textvell=pag.get()
-        except pwb.IsRedirectPage:
+        except pwb.exceptions.IsRedirectPageError:
             print("Redirecció:", pag)
             continue
         except pwb.NoPage:
@@ -291,6 +293,9 @@ if len(arguments)>0:
         creacat=True
         edita=False
         arguments.remove("-creacat")
+    if "-noordenis" in arguments:
+        ordena=False
+        arguments.remove("-noordenis")
     if "-0" in arguments:
         sub = 0
         nograns = False
@@ -328,7 +333,7 @@ if nograns:
     #qno = [x["lloc"]["value"].replace("http://www.wikidata.org/entity/","") for x in nomirar]
     #qno = qno + ["Q15348","Q249461"] #Barcelonès i Àmbit Metropolità
     qno = ["Q29", "Q142", "Q15180", "Q28513", "Q16957", "Q33946", "Q12560", "Q12544", "Q15348",
-           "Q249461","Q15580","Q12709","Q18678265","Q17005"]
+           "Q249461","Q15580","Q12709","Q18678265","Q17005","Q801"]
 else:
     nomirar = []
     qno=[]
@@ -356,9 +361,14 @@ ncats=len(dcats)
 if ordena:
     print("Carregant categories per ordenar")
     dicmida = {}
+    i = 0
+    n = len(qsi)
     for qlloc in qsi:
+        i = i+1
+        print(i, "/", n, qlloc, dcats[qlloc])
         art0, cat0, diccat, diccatvell, art1, cat1=miracat(dcats[qlloc], dicc=diccat, diccvell=diccatvell, vell=True, prof=10)
         dicmida[qlloc]=len(cat1)
+        lencats = desadicc(diccatvell, diccat, lencats)
     print("Categories carregades per poder ordenar.")
     desadicc(diccatvell, diccat, lencats)
     print("Ordenant")
@@ -391,6 +401,10 @@ for qgrup in qgrups:
         continue
     except urllib.error.HTTPError:
         print("Error urllib.error.HTTPError per", qgrup)
+        print("Ho deixem córrer i continuem")
+        continue
+    except http.client.IncompleteRead:
+        print("Error http.client.IncompleteRead per", qgrup)
         print("Ho deixem córrer i continuem")
         continue
     #print(nascutswd)
