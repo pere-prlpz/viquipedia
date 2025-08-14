@@ -177,7 +177,7 @@ def posacat(cat, catsno=[], arts=[], site=pwb.Site('ca'), extrasumari=""):
         pag=pwb.Page(site, art)
         try:
             textvell=pag.get()
-        except pwb.IsRedirectPage:
+        except pwb.exceptions.IsRedirectPageError:
             print("Redirecció:", pag)
             continue
         except pwb.NoPage:
@@ -218,10 +218,27 @@ def posacat(cat, catsno=[], arts=[], site=pwb.Site('ca'), extrasumari=""):
                 continue
     return
 
+def posaqcats(cats, catsno=[], arts=[], nqcat=r"C:\Users\Pere\Documents\perebot\qcat.txt", treuper=True): 
+    cats = [re.sub("Categoria:","",cat) for cat in cats]
+    catsno = [re.sub("Categoria:","",cat) for cat in catsno]
+    tcats = "|".join(["+Category:"+cat for cat in cats])
+    if treuper:
+        catsno = [x for x in catsno if not " per " in x]
+    if len(catsno)>0:
+        tcatsno = "|".join(["-Category:"+cat for cat in catsno])
+        tcats = tcats+"|"+tcatsno
+    comandes = "\n".join([art+"|"+tcats for art in arts])+"\n"
+    with open(nqcat, "a", encoding='utf-8') as f:
+        f.write(comandes)
+        f.close()
+
 
 # el programa comença aquí ----------------------------------------
 ordena = True # ordenar categories per mida
 ordena3 = True # ordenar tenint en compte categories pares
+qcnet = False   # netejar el fitxer quickcategories
+qcat = False   # fer servir quickcategories en comptes d'editar directament
+nqcat = r"C:\Users\Pere\Documents\perebot\qcat.txt"
 llistano = False
 imprimeix("\n"+time.asctime(time.localtime(time.time())))
 site=pwb.Site('ca')
@@ -242,6 +259,19 @@ if len(arguments)>0:
     if "-llistano" in arguments: # fer llista de categories no cobertes
         llistano=True
         arguments.remove("-llistano")
+    if "-qcat" in arguments:
+        qcat=True
+        arguments.remove("-qcat")
+    if "-net" in arguments:
+        qcnet=True
+        arguments.remove("-net")
+    if "-noordenis" in arguments:
+        ordena=False
+        arguments.remove("-noordenis")
+if qcnet:
+    with open(nqcat, "w", encoding='utf-8') as f:
+        f.write("")
+        f.close()
 
 # llegir dades de Wikidata
 ocupawd = get_query("""# Categories d'ocupacions
@@ -465,6 +495,7 @@ print("scatinternom:", len(scatinternom))
 # busquem a les categories per grup humà
 art0, cat0, diccat, diccatvell, art1, cgrups=miracat("Categoria:Biografies per grup humà", dicc=diccat, diccvell=diccatvell, 
                                                       vell=True, prof=10, noseg=cat1pers)
+lencats=desadicc(diccatvell, diccat, lencats)
 tgrups = []
 print("grups com a lloc")
 for cat in cgrups:
@@ -535,6 +566,7 @@ for tcat in catsmirar:
                 if queda in diccatvell:
                     tgrups1.append((subcat, tuple(sorted((catsup, queda)))))
 print("tgrups1:",len(tgrups1))
+lencats=desadicc(diccatvell, diccat, lencats)
 
 # categories amb el gentilici intercalat
 catsbase = ["Categoria:Compositors per gènere", "Categoria:Compositors per estil", "Categoria:Compositors per segle", 
@@ -575,6 +607,7 @@ for catbase in catsbase:
                     tgrups2.append((subcat, tuple(sorted((catlloc, queda)))))
 #print(tgrups2)
 print("tgrups2:",len(tgrups2))
+lencats=desadicc(diccatvell, diccat, lencats)
 
 # categories barrejant noms en totes les posicions
 catsgrals = ["Categoria:Religiosos", "Categoria:Polonesos", 
@@ -626,6 +659,7 @@ for catsup in ctots:
                 print(subcat,"=", catsup, "+", queda, queda in diccatvell)
                 tgrupstot.append((subcat, tuple(sorted((catsup, queda)))))
 print("tgrupstot:", len(tgrupstot))
+lencats=desadicc(diccatvell, diccat, lencats)
 
 # ajuntem
 scats = sintercat | sintercat2 | scatinternom | set(tgrups) | set(tgrups1) | set(tgrups2) | set(tgrupstot)
@@ -686,6 +720,7 @@ if ordena:
         else: # NO PROVAT
             dicmida[tcat]=mida
             print(i,"/",n, cat, dicmida[tcat], mida)
+        lencats=desadicc(diccatvell, diccat, lencats)
     print("Categories carregades per poder ordenar.")
     lencats=desadicc(diccatvell, diccat, lencats)
     print("Ordenant")
@@ -756,7 +791,7 @@ for tcat in catsllococu:
     if re.search("alcaldes franquistes|dictadors", cat.casefold()): # no tots els que han estat alcaldes i franquistes són alcaldes franquistes
         print("Descartada",cat)
         continue
-    if re.search("espanyols|turcs|israelians", cat.casefold()): #|bascos|francesos
+    if re.search("espanyols|turcs|israelians", cat.casefold()) and not re.search("jueus israelians", cat.casefold()): #|bascos|francesos
         print("Descartada provisionalment",cat)
         continue
     catA=tcat[1][0]
@@ -837,6 +872,9 @@ for tcat in catsllococu:
             redundants = {x for x in redundants if re.search("esborranys", x.casefold())}
         print("Redundants:",redundants)
         sumari = "intersecant [["+catA+"]] i [["+catB+"]]"
-        posacat(cat, catsno=redundants, arts=posar, extrasumari=sumari)
+        if qcat:
+            posaqcats([cat], redundants, arts=posar, nqcat=nqcat)
+        else:
+            posacat(cat, catsno=redundants, arts=posar, extrasumari=sumari)
         diccat[cat]["art0"].extend(posar)
         diccatvell[cat]["art0"].extend(posar)    

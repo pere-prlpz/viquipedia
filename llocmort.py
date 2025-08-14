@@ -5,10 +5,11 @@
 # -sub: inclou els morts als llocs sense categoria als llocs que els inclouen (P131)
 # -tot: com sub i a més posa també categories per llocs grans (estats, comunitats autònomes, etc.).
 # -noestats: com tot però sense estats sobirans ni continents
-# Si s'ha d'actualitzar molt pot ser recomanable fer primer una passada amb -sub, 
-# després una passada amb -noestats i després una passada amb -tot, i d'aquesta manera
-# evitar editar gaires vegades el mateix article.
-# Si hi ha poc a actualitzar, pot ser més practic fer -tot directament.
+# Sense -sub, -tot i -noestats només mira els llocs de mort expecificats a Wikidata, sense fer servir P131.
+# Abans es recomanava fer-los servir en seqüència però ja no cal perquè ara ordena per mida i comença
+# per les categories més concretes (a menys que es faci servir -noordenis).
+# -qcat: En lloc d'editar, crea un arxiu amb instruccions pel quickstatements. És útil si hi ha molt a editar.
+# -net: Abans de començar, neteja l'arxiu d'instruccions pel quickstatements.
 
 import pywikibot as pwb
 from pywikibot import pagegenerators
@@ -18,6 +19,7 @@ import pickle
 import sys
 import urllib
 from urllib.parse import unquote
+import http.client
 
 def get_results(endpoint_url, query):
     user_agent = "PereBot/1.0 (ca:User:Pere_prlpz; prlpzb@gmail.com) Python/%s.%s" % (sys.version_info[0], sys.version_info[1])
@@ -154,8 +156,12 @@ def artcat(catnom, site=pwb.Site('ca'), profunditat=8):
         llistart.append(art.title())
     return(llistart)
 
-def miracat(catnom, site=pwb.Site('ca'), dicc={}, diccvell={}, vell=False, prof=20):
-    print(catnom, prof)
+def miracat(catnom, site=pwb.Site('ca'), dicc={}, diccvell={}, vell=False, prof=20, noseg=[], noinc=[], verbose="nou"):
+    # noseg: categories que llegeix però no continua més avall
+    # noinc: categories que no llegeix
+    # verbose: sí, nou, tot
+    if verbose=="sí":
+        print(catnom, prof)
     if catnom in dicc:
         font = "dicc nou"
         art0 = dicc[catnom]["art0"]
@@ -180,21 +186,33 @@ def miracat(catnom, site=pwb.Site('ca'), dicc={}, diccvell={}, vell=False, prof=
     art1 = set(art0)
     cat1 = set(cat0)
     if prof<=0:
-        print("Arribat al límit de profunditat")
-        print("art0:", len(art0), "cat0:", len(cat0), "dicc:", len(dicc), "art1:", len(art1), "cat1", len(cat1), font, catnom)
+        if verbose == "sí":
+            print("Arribat al límit de profunditat")
+            print("art0:", len(art0), "cat0:", len(cat0), "dicc:", len(dicc), "art1:", len(art1), "cat1", len(cat1), font, catnom)
         return(art0, cat0, dicc, diccvell, art1, cat1)
     for cat in cat0:
-        art10,cat10,dicc,diccvell,art11,cat11=miracat(cat, dicc=dicc, diccvell=diccvell, vell=vell, prof=prof-1)
+        if cat in noinc:
+            continue
+        if cat in noseg:
+            profseguent = 0
+        else:
+            profseguent = prof-1
+        art10,cat10,dicc,diccvell,art11,cat11=miracat(cat, dicc=dicc, diccvell=diccvell, vell=vell, prof=profseguent, noseg=noseg, noinc=noinc)
         art1 = art1.union(art11)
         cat1 = cat1.union(cat11)
-    print("art0:", len(art0), "cat0:", len(cat0), "dicc:", len(dicc), "art1:", len(art1), "cat1", len(cat1), font, catnom)
+    if verbose=="sí" or (verbose=="nou" and font=="llegit"):
+        print(prof, "art0:", len(art0), "cat0:", len(cat0), "dicc:", len(dicc), "art1:", len(art1), "cat1", len(cat1), font, catnom)
     return(art0, cat0, dicc, diccvell, art1, cat1)
-
-def desadicc(diccatvell):
-    fitxer = r"C:\Users\Pere\Documents\perebot\categories.pkl"
-    pickle.dump(diccatvell, open(fitxer, "wb")) 
-    print("Diccionari vell desat. Diccionari:",lencats,"Diccionari vell:", len(diccatvell))
-    return
+    
+def desadicc(diccatvell, diccatnou=[1], lendic=0):
+    if len(diccatnou)>lendic:
+        fitxer = r"C:\Users\Pere\Documents\perebot\categories.pkl"
+        pickle.dump(diccatvell, open(fitxer, "wb")) 
+        lennou = len(diccatnou)
+        print("Diccionari vell desat. Diccionari:",lennou,"Diccionari vell:", len(diccatvell))
+        return (lennou)
+    else:
+        return(lendic)
 
 def posacat(cat, catsno=[], arts=[], site=pwb.Site('ca')):
     #print(cat)
@@ -203,7 +221,7 @@ def posacat(cat, catsno=[], arts=[], site=pwb.Site('ca')):
         pag=pwb.Page(site, art)
         try:
             textvell=pag.get()
-        except pwb.IsRedirectPage:
+        except pwb.exceptions.IsRedirectPageError:
             print("Redirecció")
             continue
         except pwb.NoPage:
@@ -244,6 +262,20 @@ def posacat(cat, catsno=[], arts=[], site=pwb.Site('ca')):
                 continue
     return
 
+def posaqcats(cats, catsno=[], arts=[], nqcat=r"C:\Users\Pere\Documents\perebot\qcat.txt", treuper=True): 
+    cats = [re.sub("Categoria:","",cat) for cat in cats]
+    catsno = [re.sub("Categoria:","",cat) for cat in catsno]
+    tcats = "|".join(["+Category:"+cat for cat in cats])
+    if treuper:
+        catsno = [x for x in catsno if not " per " in x]
+    if len(catsno)>0:
+        tcatsno = "|".join(["-Category:"+cat for cat in catsno])
+        tcats = tcats+"|"+tcatsno
+    comandes = "\n".join([art+"|"+tcats for art in arts])+"\n"
+    with open(nqcat, "a", encoding='utf-8') as f:
+        f.write(comandes)
+        f.close()
+
 
 # el programa comença aquí
 sub=False
@@ -256,6 +288,10 @@ desa=True
 edita=True
 editacat=True
 creacat=False
+qcnet = False   # netejar el fitxer quickcategories
+qcat = False   # fer servir quickcategories en comptes d'editar directament
+nqcat = r"C:\Users\Pere\Documents\perebot\qcat.txt"
+ordena = True
 arguments = sys.argv[1:]
 if len(arguments)>0:
     if "-sub" in arguments:
@@ -301,6 +337,19 @@ if len(arguments)>0:
         arguments.remove("-max")
     else:
         maxcats=4
+    if "-qcat" in arguments:
+        qcat=True
+        arguments.remove("-qcat")
+    if "-net" in arguments:
+        qcnet=True
+        arguments.remove("-net")
+    if "-noordenis" in arguments:
+        ordena=False
+        arguments.remove("-noordenis")
+if qcnet:
+    with open(nqcat, "w", encoding='utf-8') as f:
+        f.write("")
+        f.close()
 try:
     diccatvell=pickle.load(open(r"C:\Users\Pere\Documents\perebot\categories.pkl", "rb"))
 except FileNotFoundError:
@@ -338,6 +387,25 @@ dcats = {x: dcats[x] for x in qsi}
 #print(dcats)
 print(len(dcats))
 ncats=len(dcats)
+diccat={}
+lencats = 0
+if ordena:
+    print("Carregant categories per ordenar")
+    dicmida = {}
+    i = 0
+    n = len(qsi)
+    for qlloc in qsi:
+        i = i+1
+        print(i, "/", n, qlloc, dcats[qlloc])
+        art0, cat0, diccat, diccatvell, art1, cat1=miracat(dcats[qlloc], dicc=diccat, diccvell=diccatvell, vell=True, prof=10)
+        dicmida[qlloc]=len(cat1)
+        lencats = desadicc(diccatvell, diccat, lencats)
+    print("Categories carregades per poder ordenar.")
+    desadicc(diccatvell, diccat, lencats)
+    print("Ordenant")
+    qsi = sorted(dicmida, key=dicmida.get)
+    #print("qsi:", qsi, len(qsi)) #
+    #for x in qsi: print(x, dcats[x]) #
 if sub:
     midagrup=1
 else:
@@ -347,8 +415,6 @@ qgrups = [qsi[x:x+midagrup] for x in range(0,len(qsi), midagrup)]
 print(len(qgrups))
 total=0
 icat=0
-diccat={}
-lencats = 0
 for qgrup in qgrups:
     print(qgrup)
     try:
@@ -416,7 +482,10 @@ for qgrup in qgrups:
                     #print(red)
                     redundants.append(urllib.parse.unquote(red["categoria"]["value"].replace("https://ca.wikipedia.org/wiki/","")).replace("_"," "))
                 print(redundants)
-                posacat(cat, redundants, arts=posar)
+                if qcat:
+                    posaqcats([cat], redundants, arts=posar, nqcat=nqcat)
+                else:
+                    posacat(cat, redundants, arts=posar)
                 diccat[cat]["art0"].extend(posar)
                 diccatvell[cat]["art0"].extend(posar)        
 print(total)

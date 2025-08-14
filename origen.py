@@ -7,6 +7,8 @@
 # -2 i més números fins a -5: mira el nombre de nivells especificat
 # -noordenis: no ordena les categories abans de començar (alternativament, comença per les petites)
 # -creacat: no implementat
+# -qcat: En lloc d'editar, crea un arxiu amb instruccions pel quickstatements. És útil si hi ha molt a editar.
+# -net: Abans de començar, neteja l'arxiu d'instruccions pel quickstatements.
 
 import pywikibot as pwb
 from pywikibot import pagegenerators
