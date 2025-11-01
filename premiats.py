@@ -233,7 +233,7 @@ notocar = ["Categoria:Grammy a l'àlbum de l'any", "Categoria:Pel·lícules guan
 notocarreg = "Categoria:(Jocs Olímpics|Festival|Foment|.*(premi Oscar|[Pp]el·lícules|BAFTA|Goncourt|[Pp]remi Goya)|Globus d.Or|actriu|cançó)"
 # versió que anul·la filtres de categories perquè ja s'elimina el que no són persones
 notocar = []
-notocarreg = "Categoria:Pel·lícules"
+notocarreg = "Categoria:(Pel·lícules|Musicals|Guanyadors del Grammy al millor àlbum)"
 #
 diccpral, diccprem = dicccategories()
 #print(diccpral)

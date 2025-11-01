@@ -1,10 +1,113 @@
 # -*- coding: utf-8 -*-
 # Actualitza Viquiprojecte:Discussions desateses/discussions
+# En desenvolupament: que també actualitzi discussions actives
 
 import sys
 import pywikibot
 import re,urllib.request, json,time
 from pywikibot import pagegenerators
+
+def fesinforme(pagweb):
+    informe=u"Actualització: --~~~~\n\n"
+    informeno=u"=Discussions noves no incloses=\n\n"
+    #Compilació dels regex fora del loop per optimitzar
+    re_tradt = re.compile(r"==.*==\n*\{\{([Tt]radu[iï]t|[Cc]opiat) de.*?\}\}")
+    re_trad = re.compile(r"\{\{([Tt]radu[iï]t|[Cc]opiat) de.*?\}\}")
+    re_sta = re.compile(r"\{\{STA\|.*?\}\}")
+    re_usr = re.compile(r"\[\[(Usuari|\{\{ns:2\}\}).*?\]\]")
+    re_span1 = re.compile(r"<(span|font).*?>")
+    re_span2 = re.compile(r"</(span|font)>")
+    re_negreta = re.compile(r"'''")
+    re_cometes = re.compile(r"''|\n")
+    re_imatge = re.compile(r"--.?\[\[(File|Fitxer).*?\]\]") # imatge a la signatura
+    re_titol = re.compile(r"==.?[Tt]raducció.?==") # encapçalament que se sol posar sobre la plantilla de traducció
+    re_data = re.compile(r"\d{2}:\d{2}, \d{1,2} .{3} \d{4}") 
+    for urlweb in pagweb:
+            user_agent = "PereBot/1.0 (ca:User:Pere_prlpz; prlpzb@gmail.com) Python/%s.%s" % (sys.version_info[0], sys.version_info[1])
+            req = urllib.request.Request(urlweb, headers={'User-Agent' : user_agent}) 
+            pllista=urllib.request.urlopen(req) 
+            print("obert")
+            try:
+                    pbrut=pllista.read()
+            except:
+                    print ("error en llegir. esperant")
+                    time.sleep(60)
+                    try:
+                            pbrut=pllista.read()
+                    except:
+                            print ("error en llegir. esperant")
+                            time.sleep(100)
+                            try:
+                                    pbrut=pllista.read()
+                            except:
+                                    print ("error en llegir. esperant")
+                                    time.sleep(200)
+                                    pbrut=pllista.read()
+            jpag=json.loads(pbrut)
+            #print ("jpag:",jpag)
+            dpags=jpag["query"]["recentchanges"]
+            #print ("dpags:",dpags)
+            pags=[]
+            for el in dpags:
+                    tit=el["title"]
+                    print (tit)
+                    pag = pywikibot.Page(site,tit)
+                    if not pag in pags:
+                        pags.append(pag)
+            print(pags)
+            for pag in pagegenerators.PreloadingGenerator(pags):
+                    tit=pag.title()
+                    linia=u"=[[{}]]=\n".format(tit)
+                    linia=linia+u"<small>[[:{}|Article]]</small> - ".format(pag.toggleTalkPage().title())
+                    linia=linia+u"<small class=\"editlink noprint plainlinks\">[{{fullurl:"+tit+u"|action=edit}} Edita la discussió]</small>\n\n"
+                    linia=linia+u"{{"+tit+u"}}\n\n"
+                    try:
+                            text=pag.get()
+                    except pywikibot.exceptions.IsRedirectPageError:
+                            linia=u"*[[{}]] (redirecció)\n".format(tit)
+                            informeno=informeno+linia
+                            continue
+                    except pywikibot.exceptions.NoPageError:
+                            linia=u"*[[{}]] (esborrada)\n".format(tit)
+                            informeno=informeno+linia
+                            continue
+                    llarg0=len(text)
+                    textnet=text
+                    textnet=re.sub(re_tradt,u"",textnet)                
+                    textnet=re.sub(re_trad,u"",textnet)
+                    textnet=re.sub(re_sta,u"",textnet)
+                    textnet=re.sub(re_usr,u"",textnet)
+                    textnet=re.sub(re_span1,u"",textnet)
+                    textnet=re.sub(re_span2,u"",textnet)
+                    textnet=re.sub(re_negreta,u"",textnet)
+                    textnet=re.sub(re_cometes,u"",textnet)
+                    textnet=re.sub(re_imatge,u"",textnet)
+                    textnet=re.sub(re_titol,u"",textnet)
+                    textnet=re.sub(re_data,u"",textnet)
+                    textnet=textnet.replace(tit, textnet)
+                    textnet=textnet.replace("{{VPBDN}}","")
+                    textnet=textnet.replace(u"\n","")
+                    llargnet=len(textnet)
+                    hihatrad=re.search(re_trad,text)
+                    if hihatrad and llargnet < 35:
+                            print (tit, u"Només etiqueta")
+                            linia=u"*[[{}]] (només conté l'etiqueta de còpia o traducció)\n".format(tit)
+                            informeno = informeno + linia
+                    elif u"{{discussió arxivada}}" in text:
+                            print (tit, u"Discussió arxivada")
+                            linia=u"*[[{}]] (discussió arxivada)\n".format(tit)
+                            informeno = informeno + linia
+                    elif llargnet < 10:
+                            print (tit, u"Discussió curta")
+                            linia=u"*[[{}]]\n".format(tit)
+                            informeno = informeno + linia
+                    else:
+                            informe = informe + linia
+                    print (tit,llarg0,llargnet)
+                    #print(textnet)
+    informe=informe+informeno
+    return(informe) 
+
 
 site=pywikibot.Site('ca')
 paginforme=pywikibot.Page(site,u"Viquiprojecte:Discussions desateses/discussions")
@@ -18,104 +121,20 @@ pagweb.append("https://ca.wikipedia.org/w/api.php?action=query&list=recentchange
 pagweb.append("https://ca.wikipedia.org/w/api.php?action=query&list=recentchanges&format=json&rcnamespace=103&rclimit=5&rctype=new") #últimes pàgines
 pagweb.append("https://ca.wikipedia.org/w/api.php?action=query&list=recentchanges&format=json&rcnamespace=829&rclimit=4&rctype=new") #últimes pàgines
 
-#print(pagweb)
+print(pagweb)
 
-informe=u"Actualització: --~~~~\n\n"
-informeno=u"=Discussions noves no incloses=\n\n"
-#Compilació dels regex fora del loop per optimitzar
-re_tradt = re.compile(r"==.*==\n*\{\{([Tt]radu[iï]t|[Cc]opiat) de.*?\}\}")
-re_trad = re.compile(r"\{\{([Tt]radu[iï]t|[Cc]opiat) de.*?\}\}")
-re_sta = re.compile(r"\{\{STA\|.*?\}\}")
-re_usr = re.compile(r"\[\[(Usuari|\{\{ns:2\}\}).*?\]\]")
-re_span1 = re.compile(r"<(span|font).*?>")
-re_span2 = re.compile(r"</(span|font)>")
-re_negreta = re.compile(r"'''")
-re_cometes = re.compile(r"''|\n")
-re_imatge = re.compile(r"--.?\[\[(File|Fitxer).*?\]\]") # imatge a la signatura
-re_titol = re.compile(r"==.?[Tt]raducció.?==") # encapçalament que se sol posar sobre la plantilla de traducció
-re_data = re.compile(r"\d{2}:\d{2}, \d{1,2} .{3} \d{4}") 
+if True: # False per desactivar per proves
+    informe = fesinforme(pagweb)
+    paginforme.put(informe,u"Robot inclou discussions recents")
 
-for urlweb in pagweb:
-        pllista=urllib.request.urlopen(urlweb) 
-        print("obert")
-        try:
-                pbrut=pllista.read()
-        except:
-                print ("error en llegir. esperant")
-                time.sleep(60)
-                try:
-                        pbrut=pllista.read()
-                except:
-                        print ("error en llegir. esperant")
-                        time.sleep(100)
-                        try:
-                                pbrut=pllista.read()
-                        except:
-                                print ("error en llegir. esperant")
-                                time.sleep(200)
-                                pbrut=pllista.read()
-        jpag=json.loads(pbrut)
-        #print ("jpag:",jpag)
-        dpags=jpag["query"]["recentchanges"]
-        #print ("dpags:",dpags)
-        pags=[]
-        for el in dpags:
-                tit=el["title"]
-                print (tit)
-                pags.append(pywikibot.Page(site,tit))
-        print(pags)
-        for pag in pagegenerators.PreloadingGenerator(pags):
-                tit=pag.title()
-                linia=u"=[[{}]]=\n".format(tit)
-                linia=linia+u"<small>[[:{}|Article]]</small> - ".format(pag.toggleTalkPage().title())
-                linia=linia+u"<small class=\"editlink noprint plainlinks\">[{{fullurl:"+tit+u"|action=edit}} Edita la discussió]</small>\n\n"
-                linia=linia+u"{{"+tit+u"}}\n\n"
-                try:
-                        text=pag.get()
-                except pywikibot.exceptions.IsRedirectPageError:
-                        linia=u"*[[{}]] (redirecció)\n".format(tit)
-                        informeno=informeno+linia
-                        continue
-                except pywikibot.exceptions.NoPageError:
-                        linia=u"*[[{}]] (esborrada)\n".format(tit)
-                        informeno=informeno+linia
-                        continue
-                llarg0=len(text)
-                textnet=text
-                textnet=re.sub(re_tradt,u"",textnet)                
-                textnet=re.sub(re_trad,u"",textnet)
-                textnet=re.sub(re_sta,u"",textnet)
-                textnet=re.sub(re_usr,u"",textnet)
-                textnet=re.sub(re_span1,u"",textnet)
-                textnet=re.sub(re_span2,u"",textnet)
-                textnet=re.sub(re_negreta,u"",textnet)
-                textnet=re.sub(re_cometes,u"",textnet)
-                textnet=re.sub(re_imatge,u"",textnet)
-                textnet=re.sub(re_titol,u"",textnet)
-                textnet=re.sub(re_data,u"",textnet)
-                textnet=textnet.replace(tit, textnet)
-                textnet=textnet.replace("{{VPBDN}}","")
-                textnet=textnet.replace(u"\n","")
-                llargnet=len(textnet)
-                hihatrad=re.search(re_trad,text)
-                if hihatrad and llargnet < 35:
-                        print (tit, u"Només etiqueta")
-                        linia=u"*[[{}]] (només conté l'etiqueta de còpia o traducció)\n".format(tit)
-                        informeno = informeno + linia
-                elif u"{{discussió arxivada}}" in text:
-                        print (tit, u"Discussió arxivada")
-                        linia=u"*[[{}]] (discussió arxivada)\n".format(tit)
-                        informeno = informeno + linia
-                elif llargnet < 10:
-                        print (tit, u"Discussió curta")
-                        linia=u"*[[{}]]\n".format(tit)
-                        informeno = informeno + linia
-                else:
-                        informe = informe + linia
-                print (tit,llarg0,llargnet)
-                #print(textnet)
-informe=informe+informeno
-paginforme.put(informe,u"Robot inclou discussions recents")
+
+paginforme=pywikibot.Page(site,u"Viquiprojecte:Discussions desateses/discussions actives")
+pagweb = [x.replace("&rctype=new","") for x in pagweb]
+print(pagweb)
+if True: # False per desactivar per proves
+    informe = fesinforme(pagweb)
+    paginforme.put(informe,u"Robot inclou discussions recents")
+
 
 #print(informe)
 #print(informeno)

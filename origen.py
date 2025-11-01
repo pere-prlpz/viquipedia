@@ -20,6 +20,7 @@ import urllib
 import urllib.request
 #import json
 from urllib.parse import unquote
+import http.client
 
 def get_results(endpoint_url, query):
     user_agent = "PereBot/1.0 (ca:User:Pere_prlpz; prlpzb@gmail.com) Python/%s.%s" % (sys.version_info[0], sys.version_info[1])
@@ -107,6 +108,8 @@ def get_nascutswd(qllocs, sub=0):
         ?persona """+p131+""" ?lloc.
         ?article schema:about ?persona.
         ?article schema:isPartOf <https://ca.wikipedia.org/>.
+        filter not exists { ?article wikibase:badge wd:Q70894304 . }
+        filter not exists { ?article wikibase:badge wd:Q70893996 . }
     }"""
     endpoint_url = "https://query.wikidata.org/sparql"
     results = get_results(endpoint_url, query)
@@ -241,10 +244,55 @@ def posacat(cat, catsno=[], arts=[], site=pwb.Site('ca')):
                 continue
     return
 
+def posaqcats(cats, catsno=[], arts=[], nqcat=r"C:\Users\Pere\Documents\perebot\qcat.txt", treuper=True, comprova=True, site=pwb.Site('ca')): 
+    catspref = cats
+    cats = [re.sub("Categoria:","",cat) for cat in cats]
+    tcats = "|".join(["+Category:"+cat for cat in cats])
+    if treuper:
+        catsno = [x for x in catsno if not " per " in x]
+    if comprova:
+        comandes = ""
+        i = 0
+        n = len(arts)
+        for art in arts:
+            i = i+1
+            print(i, "/", n, art)
+            pag=pwb.Page(site, art)
+            try:
+                textvell=pag.get()
+            except pwb.exceptions.IsRedirectPageError:
+                print("Redirecció:", pag)
+                continue
+            except pwb.NoPage:
+                print("La pàgina no existeix:", pag)
+                continue
+            comandes = comandes + art + "|" + tcats
+            #print(catsno)
+            for catno in catsno:
+                #print(catspref)
+                if catno in catspref:
+                    #print(catno, "redundant amb si mateixa")
+                    continue
+                if re.search("\[\["+re.escape(catno)+"(\|.*)?\]\]", textvell):
+                    catnopelada = re.sub("Categoria:","",catno)
+                    comandes = comandes+"|-Category:"+catnopelada
+            comandes = comandes+"\n"
+    else:
+        catsno = [re.sub("Categoria:","",cat) for cat in catsno]
+        if len(catsno)>0:
+            tcatsno = "|".join(["-Category:"+cat for cat in catsno])
+            tcats = tcats+"|"+tcatsno
+        comandes = "\n".join([art+"|"+tcats for art in arts])+"\n"
+    with open(nqcat, "a", encoding='utf-8') as f:
+        f.write(comandes)
+        f.close()
+
+
 def desadicc(diccatvell, diccatnou=[1], lendic=0):
     if len(diccatnou)>lendic:
         fitxer = r"C:\Users\Pere\Documents\perebot\categories.pkl"
-        pickle.dump(diccatvell, open(fitxer, "wb")) 
+        with open(fitxer, "wb") as f:
+            pickle.dump(diccatvell, f) 
         lennou = len(diccatnou)
         print("Diccionari vell desat. Diccionari:",lennou,"Diccionari vell:", len(diccatvell))
         return (lennou)
@@ -273,6 +321,11 @@ creacat=False
 sub = 4
 nograns = True
 ordena = True
+qcnet = False   # netejar el fitxer quickcategories
+qcat = False   # fer servir quickcategories en comptes d'editar directament (obsolet, substituït per minqcat)
+minqcat = 1e6
+nqcat = r"C:\Users\Pere\Documents\perebot\qcat.txt"
+nskip = 0
 arguments = sys.argv[1:]
 if len(arguments)>0:
     if "-disc" in arguments:
@@ -329,6 +382,28 @@ if len(arguments)>0:
         arguments.remove("-max")
     else:
         maxcats=4
+    if "-qcat" in arguments:
+        qcat=True
+        minqcat=0
+        arguments.remove("-qcat")
+    if "-qcat5" in arguments:
+        qcat=True
+        minqcat=5
+        arguments.remove("-qcat5")
+    if "-qcat10" in arguments:
+        qcat=True
+        minqcat=10
+        arguments.remove("-qcat10")
+    if "-net" in arguments:
+        qcnet=True
+        arguments.remove("-net")
+    if "-skip3800" in arguments:
+        nskip=3800
+        arguments.remove("-skip3800")
+if qcnet:
+    with open(nqcat, "w", encoding='utf-8') as f:
+        f.write("")
+        f.close()
 if nograns:
     #nomirar = carrega_no()
     #print(nomirar)
@@ -390,24 +465,32 @@ print(len(qgrups))
 total=0
 icat=0
 for qgrup in qgrups:
-    print(qgrup)
+    print(icat,"/", ncats, qgrup, [dcats[x] for x in qgrup]) 
+    if icat<nskip:
+        icat=icat+len(qgrup)
+        print(icat,"/", ncats)
+        continue
     try:
         nascutswd = get_nascutswd(qgrup, sub=sub) 
     except ValueError:
         print("ValueError (que pot ser json.decoder.JSONDecodeError) per", qgrup)
         print("Ho deixem córrer i continuem")
+        icat=icat+len(qgrup)
         continue
     except OSError:
         print("Error OSError (potser urllib.error.URLError) per", qgrup)
         print("Ho deixem córrer i continuem")
+        icat=icat+len(qgrup)
         continue
     except urllib.error.HTTPError:
         print("Error urllib.error.HTTPError per", qgrup)
         print("Ho deixem córrer i continuem")
+        icat=icat+len(qgrup)
         continue
     except http.client.IncompleteRead:
         print("Error http.client.IncompleteRead per", qgrup)
         print("Ho deixem córrer i continuem")
+        icat=icat+len(qgrup)
         continue
     #print(nascutswd)
     total = total+len(nascutswd)
@@ -451,7 +534,11 @@ for qgrup in qgrups:
                     #print(red)
                     redundants.append(urllib.parse.unquote(red["categoria"]["value"].replace("https://ca.wikipedia.org/wiki/","")).replace("_"," "))
                 print(redundants)
-                posacat(cat, redundants, arts=posar)
+                #posacat(cat, redundants, arts=posar)
+                if len(posar)>minqcat:
+                    posaqcats([cat], redundants, arts=posar, nqcat=nqcat)
+                else:
+                    posacat(cat, catsno=redundants, arts=posar)
                 diccat[cat]["art0"].extend(posar)
                 diccatvell[cat]["art0"].extend(posar)
 print(total)

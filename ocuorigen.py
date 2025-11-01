@@ -29,7 +29,7 @@ def get_query(query):
     #print(wd)
     return (wd)
 
-def miracatinv(cat, dicc, prof=20, noinc=[]):
+def miracatinv(cat, dicc, prof=15, noinc=[]):
     lliures = {cat}
     super = {cat}
     while len(lliures)>0 and prof>0:
@@ -146,7 +146,8 @@ def imprimeixlinies(text, file=r"C:\Users\Pere\Documents\perebot\informe_ocuorig
 def desadicc(diccatvell, diccatnou=[1], lendic=0):
     if len(diccatnou)>lendic:
         fitxer = r"C:\Users\Pere\Documents\perebot\categories.pkl"
-        pickle.dump(diccatvell, open(fitxer, "wb")) 
+        with open(fitxer, "wb") as f:
+            pickle.dump(diccatvell, f) 
         lennou = len(diccatnou)
         print("Diccionari vell desat. Diccionari:",lennou,"Diccionari vell:", len(diccatvell))
         return (lennou)
@@ -218,16 +219,45 @@ def posacat(cat, catsno=[], arts=[], site=pwb.Site('ca'), extrasumari=""):
                 continue
     return
 
-def posaqcats(cats, catsno=[], arts=[], nqcat=r"C:\Users\Pere\Documents\perebot\qcat.txt", treuper=True): 
+def posaqcats(cats, catsno=[], arts=[], nqcat=r"C:\Users\Pere\Documents\perebot\qcat.txt", treuper=True, comprova=True): 
+    catspref = cats
     cats = [re.sub("Categoria:","",cat) for cat in cats]
-    catsno = [re.sub("Categoria:","",cat) for cat in catsno]
     tcats = "|".join(["+Category:"+cat for cat in cats])
     if treuper:
         catsno = [x for x in catsno if not " per " in x]
-    if len(catsno)>0:
-        tcatsno = "|".join(["-Category:"+cat for cat in catsno])
-        tcats = tcats+"|"+tcatsno
-    comandes = "\n".join([art+"|"+tcats for art in arts])+"\n"
+    if comprova:
+        comandes = ""
+        i = 0
+        n = len(arts)
+        for art in arts:
+            i = i+1
+            print(i, "/", n, art)
+            pag=pwb.Page(site, art)
+            try:
+                textvell=pag.get()
+            except pwb.exceptions.IsRedirectPageError:
+                print("Redirecció:", pag)
+                continue
+            except pwb.NoPage:
+                print("La pàgina no existeix:", pag)
+                continue
+            comandes = comandes + art + "|" + tcats
+            #print(catsno)
+            for catno in catsno:
+                #print(catspref)
+                if catno in catspref:
+                    #print(catno, "redundant amb si mateixa")
+                    continue
+                if re.search("\[\["+re.escape(catno)+"(\|.*)?\]\]", textvell):
+                    catnopelada = re.sub("Categoria:","",catno)
+                    comandes = comandes+"|-Category:"+catnopelada
+            comandes = comandes+"\n"
+    else:
+        catsno = [re.sub("Categoria:","",cat) for cat in catsno]
+        if len(catsno)>0:
+            tcatsno = "|".join(["-Category:"+cat for cat in catsno])
+            tcats = tcats+"|"+tcatsno
+        comandes = "\n".join([art+"|"+tcats for art in arts])+"\n"
     with open(nqcat, "a", encoding='utf-8') as f:
         f.write(comandes)
         f.close()
@@ -237,7 +267,8 @@ def posaqcats(cats, catsno=[], arts=[], nqcat=r"C:\Users\Pere\Documents\perebot\
 ordena = True # ordenar categories per mida
 ordena3 = True # ordenar tenint en compte categories pares
 qcnet = False   # netejar el fitxer quickcategories
-qcat = False   # fer servir quickcategories en comptes d'editar directament
+qcat = False   # fer servir quickcategories en comptes d'editar directament (obsolet, substituït per minqcat)
+minqcat = 1e6
 nqcat = r"C:\Users\Pere\Documents\perebot\qcat.txt"
 llistano = False
 imprimeix("\n"+time.asctime(time.localtime(time.time())))
@@ -261,7 +292,20 @@ if len(arguments)>0:
         arguments.remove("-llistano")
     if "-qcat" in arguments:
         qcat=True
+        minqcat=0
         arguments.remove("-qcat")
+    if "-qcat5" in arguments:
+        qcat=True
+        minqcat=5
+        arguments.remove("-qcat5")
+    if "-qcat10" in arguments:
+        qcat=True
+        minqcat=10
+        arguments.remove("-qcat10")
+    if "-qcat15" in arguments:
+        qcat=True
+        minqcat=15
+        arguments.remove("-qcat15")
     if "-net" in arguments:
         qcnet=True
         arguments.remove("-net")
@@ -273,11 +317,11 @@ if qcnet:
         f.write("")
         f.close()
 
-# llegir dades de Wikidata
+# llegir dades de Wikidata Q12737077 abans Q28640
 ocupawd = get_query("""# Categories d'ocupacions
 SELECT DISTINCT ?ocupacio ?ocupacioLabel ?cat ?categoria ?conte ?conteLabel
 WHERE {
-  ?ocupacio wdt:P31/wdt:P279* wd:Q28640.
+  ?ocupacio wdt:P31/wdt:P279* wd:Q12737077.
   ?ocupacio wdt:P910 ?cat.
     ?categoria schema:about ?cat.
     ?categoria schema:isPartOf <https://ca.wikipedia.org/>.
@@ -360,41 +404,49 @@ for x in llocswd}
 #print(dcatlloc)
 print("dcatlloc", len(dcatlloc))
 
-cat2wd=get_query("""# categories de persones amb temes associats super P131
-SELECT DISTINCT ?cat ?categoria ?associat WHERE {
-  ?cat wdt:P31 wd:Q4167836.
-  ?cat wdt:P4224 wd:Q5.
-  ?cat wdt:P971 ?lloc.
-  ?lloc wdt:P131 [].
-  ?categoria schema:about ?cat.
-  ?cat wdt:P971 ?associat.
-  ?categoria schema:isPartOf <https://ca.wikipedia.org/>.
-}""")
-dcatrel = {urllib.parse.unquote(x["categoria"]["value"].replace("https://ca.wikipedia.org/wiki/","")).replace("_"," "):[]\
-for x in cat2wd}
-#print(dcatrel)
-for x in cat2wd:
-    cat = urllib.parse.unquote(x["categoria"]["value"].replace("https://ca.wikipedia.org/wiki/","")).replace("_"," ")
-    tema = x["associat"]["value"].replace("http://www.wikidata.org/entity/","")
-    dcatrel[cat].append(tema)
-#print(dcatrel)
-print("dcatrel", len(dcatrel))
-dintercat = {}
-for cat in dcatrel:
-    relacions = dcatrel[cat]
-    if "Q19660746" in relacions:
-        relacions.remove("Q19660746")
-    if len(relacions) != 2:
-        continue
-    qlloc = ""
-    qocu = ""
-    for tema in relacions:
-        if tema in docucat and qocu=="":
-            qocu = tema
-        if tema in dlloccat and qlloc =="":
-            qlloc = tema
-    if qlloc != "" and qocu !="":
-        dintercat[cat] = {"qocu":qocu, "qlloc":qlloc, "cocu":docucat[qocu], "clloc":dlloccat[qlloc]}
+# cerca de categories amb dos temes a Wikidata abandonada per massa categories mal documentades
+if False:
+    cat2wd=get_query("""# categories de persones amb temes associats super P131
+    SELECT DISTINCT ?cat ?categoria ?associat WHERE {
+      ?cat wdt:P31 wd:Q4167836.
+      ?cat wdt:P4224 wd:Q5.
+      ?cat wdt:P971 ?lloc.
+      ?lloc wdt:P131 [].
+      ?categoria schema:about ?cat.
+      ?cat wdt:P971 ?associat.
+      ?categoria schema:isPartOf <https://ca.wikipedia.org/>.
+    }""")
+    dcatrel = {urllib.parse.unquote(x["categoria"]["value"].replace("https://ca.wikipedia.org/wiki/","")).replace("_"," "):[]\
+    for x in cat2wd}
+    #print(dcatrel)
+    for x in cat2wd:
+        cat = urllib.parse.unquote(x["categoria"]["value"].replace("https://ca.wikipedia.org/wiki/","")).replace("_"," ")
+        tema = x["associat"]["value"].replace("http://www.wikidata.org/entity/","")
+        dcatrel[cat].append(tema)
+    #print(dcatrel)
+    print("dcatrel", len(dcatrel))
+    dintercat = {}
+    for cat in dcatrel:
+        relacions = dcatrel[cat]
+        if "Q19660746" in relacions:
+            relacions.remove("Q19660746")
+        if len(relacions) != 2:
+            continue
+        qlloc = ""
+        qocu = ""
+        for tema in relacions:
+            if tema in docucat and qocu=="":
+                qocu = tema
+            if tema in dlloccat and qlloc =="":
+                qlloc = tema
+        if re.search(" internacionals amb |femenines|irlandeses", cat):
+            print ("Possiblement mal definida per P971:", cat)
+            continue
+        if qlloc != "" and qocu !="":
+            dintercat[cat] = {"qocu":qocu, "qlloc":qlloc, "cocu":docucat[qocu], "clloc":dlloccat[qlloc]}
+else:
+    print ("cerca de categories amb dos temes a Wikidata abandonada per massa categories mal documentades")
+    dintercat = {}
 #print(dintercat, len(dintercat))
 #for cat in dintercat: print(cat, dintercat[cat]["cocu"], dintercat[cat]["clloc"])
 print("dintercat", len(dintercat))
@@ -402,44 +454,48 @@ sintercat = {(x, tuple(sorted((dintercat[x]["cocu"], dintercat[x]["clloc"])))) f
 #print(list(sintercat)[0:6])
 print("sintercat:", len(sintercat))
 
-# compte variables repetides
-cat2wd=get_query("""# categories de persones amb temes associats amb estats
-SELECT DISTINCT ?cat ?categoria ?associat WHERE {
-  ?cat wdt:P31 wd:Q4167836.
-  ?cat wdt:P4224 wd:Q5.
-  ?cat wdt:P971 ?lloc.
-  ?lloc wdt:P31 wd:Q3624078.
-  ?categoria schema:about ?cat.
-  ?cat wdt:P971 ?associat.
-  ?categoria schema:isPartOf <https://ca.wikipedia.org/>.
-}""")
-dcatrel = {urllib.parse.unquote(x["categoria"]["value"].replace("https://ca.wikipedia.org/wiki/","")).replace("_"," "):[]\
-for x in cat2wd}
-#print(dcatrel)
-for x in cat2wd:
-    cat = urllib.parse.unquote(x["categoria"]["value"].replace("https://ca.wikipedia.org/wiki/","")).replace("_"," ")
-    tema = x["associat"]["value"].replace("http://www.wikidata.org/entity/","")
-    dcatrel[cat].append(tema)
-#print(dcatrel)
-print("dcatrel", len(dcatrel))
-dintercat = {}
-for cat in dcatrel:
-    relacions = dcatrel[cat]
-    if "Q19660746" in relacions:
-        relacions.remove("Q19660746")
-    if len(relacions) != 2:
-        continue
-    qlloc = ""
-    qocu = ""
-    for tema in relacions:
-        if tema in docucat and qocu=="":
-            qocu = tema
-        if tema in dlloccat and qlloc =="":
-            qlloc = tema
-    if qlloc != "" and qocu !="":
-        dintercat[cat] = {"qocu":qocu, "qlloc":qlloc, "cocu":docucat[qocu], "clloc":dlloccat[qlloc]}
-#print(dintercat, len(dintercat))
-#for cat in dintercat: print(cat, dintercat[cat]["cocu"], dintercat[cat]["clloc"])
+# cerca de categories amb dos temes a Wikidata abandonada per massa categories mal documentades
+if False:
+    # compte variables repetides
+    cat2wd=get_query("""# categories de persones amb temes associats amb estats
+    SELECT DISTINCT ?cat ?categoria ?associat WHERE {
+      ?cat wdt:P31 wd:Q4167836.
+      ?cat wdt:P4224 wd:Q5.
+      ?cat wdt:P971 ?lloc.
+      ?lloc wdt:P31 wd:Q3624078.
+      ?categoria schema:about ?cat.
+      ?cat wdt:P971 ?associat.
+      ?categoria schema:isPartOf <https://ca.wikipedia.org/>.
+    }""")
+    dcatrel = {urllib.parse.unquote(x["categoria"]["value"].replace("https://ca.wikipedia.org/wiki/","")).replace("_"," "):[]\
+    for x in cat2wd}
+    #print(dcatrel)
+    for x in cat2wd:
+        cat = urllib.parse.unquote(x["categoria"]["value"].replace("https://ca.wikipedia.org/wiki/","")).replace("_"," ")
+        tema = x["associat"]["value"].replace("http://www.wikidata.org/entity/","")
+        dcatrel[cat].append(tema)
+    #print(dcatrel)
+    print("dcatrel", len(dcatrel))
+    dintercat = {}
+    for cat in dcatrel:
+        relacions = dcatrel[cat]
+        if "Q19660746" in relacions:
+            relacions.remove("Q19660746")
+        if len(relacions) != 2:
+            continue
+        qlloc = ""
+        qocu = ""
+        for tema in relacions:
+            if tema in docucat and qocu=="":
+                qocu = tema
+            if tema in dlloccat and qlloc =="":
+                qlloc = tema
+        if qlloc != "" and qocu !="":
+            dintercat[cat] = {"qocu":qocu, "qlloc":qlloc, "cocu":docucat[qocu], "clloc":dlloccat[qlloc]}
+    #print(dintercat, len(dintercat))
+    #for cat in dintercat: print(cat, dintercat[cat]["cocu"], dintercat[cat]["clloc"])
+else:
+    dintercat = {}
 print("dintercat", len(dintercat))
 sintercat2 = {(x, tuple(sorted((dintercat[x]["cocu"], dintercat[x]["clloc"])))) for x in dintercat}
 #print(list(sintercat)[0:6])
@@ -459,8 +515,36 @@ SELECT ?item ?cat ?categoria WHERE {
   ?categoria schema:about ?cat.
   ?categoria schema:isPartOf <https://ca.wikipedia.org/>.
 }""")
+cat1orgintergov = get_query("""# categories principals d'una organització intergovernamental
+SELECT ?item ?cat ?categoria WHERE {
+  ?item wdt:P31 wd:Q245065.
+  ?item wdt:P910 ?cat.
+  ?categoria schema:about ?cat.
+  ?categoria schema:isPartOf <https://ca.wikipedia.org/>.
+}""")
+cat1org = get_query("""# categories principals d'una organització 
+SELECT ?item ?cat ?categoria WHERE {
+  ?item wdt:P31 wd:Q43229.
+  ?item wdt:P910 ?cat.
+  ?categoria schema:about ?cat.
+  ?categoria schema:isPartOf <https://ca.wikipedia.org/>.
+}""")
+cat1grupmus = get_query("""# categories principals d'un grup de música
+SELECT ?item ?cat ?categoria WHERE {
+  ?item wdt:P31 wd:Q215380.
+  ?item wdt:P910 ?cat.
+  ?categoria schema:about ?cat.
+  ?categoria schema:isPartOf <https://ca.wikipedia.org/>.
+}""")
+cat1lleng = get_query("""# categories principals d'una llengua
+SELECT ?item ?cat ?categoria WHERE {
+  ?item wdt:P31 wd:Q34770.
+  ?item wdt:P910 ?cat.
+  ?categoria schema:about ?cat.
+  ?categoria schema:isPartOf <https://ca.wikipedia.org/>.
+}""")
 cat1pers = [urllib.parse.unquote(x["categoria"]["value"].replace("https://ca.wikipedia.org/wiki/","")).replace("_"," ")
-            for x in (cat1perswd+cat1perswdbib)]
+            for x in (cat1perswd+cat1perswdbib+cat1orgintergov+cat1org+cat1grupmus+cat1lleng)]
 #print(cat1pers)
 print("cat1pers", len(cat1pers))
 
@@ -533,7 +617,7 @@ catsmirar = [("Flamencs (persones)", ("flamencs")),
              ("Valencians de la ciutat de València", ("de València")), 
              ("Antics atenencs", ("de l'antiga Atenes", "atenencs de l'antiguitat")),
              ("Antics grecs de l'Àsia Menor", ("grecs de l'antiga Àsia Menor")),
-             ("Nord-catalans", ("contemporanis", "contemporànies")),
+             ("Nord-catalans", ("contemporanis", "contemporànies", "catalans del nord")),
              ("Catalans del sud contemporanis", ("contemporanis", "contemporànies", "catalans del sud")),
              ("Valencians contemporanis", ("contemporanis", "contemporànies")),
              ("Balears contemporanis", ("contemporanis", "contemporànies")),
@@ -544,6 +628,27 @@ catsmirar = [("Flamencs (persones)", ("flamencs")),
              ("Valencians històrics", ("històrics", "històriques")),
              ("Rossellonesos històrics", ("històrics", "històriques")),
              ("Barcelonins històrics", ("històrics", "històriques")),
+             ("Irlandesos de la República d'Irlanda", ("de la República d'Irlanda")),
+#             ("Palestins per activitat", ("palestins")),
+             ("Biografies del segle IV", ("del segle IV")), 
+             ("Biografies del segle V", ("del segle V")), 
+             ("Biografies del segle VI", ("del segle VI")), 
+             ("Biografies del segle VII", ("del segle VII")), 
+             ("Biografies del segle VIII", ("del segle VIII")), 
+             ("Biografies del segle IX", ("del segle IX")), 
+             ("Biografies del segle X", ("del segle X")), 
+             ("Biografies del segle XI", ("del segle XI")), 
+             ("Biografies del segle XII", ("del segle XII")), 
+             ("Biografies del segle XIII", ("del segle XIII")), 
+             ("Biografies del segle XIV", ("del segle XIV")),
+             ("Biografies del segle XV", ("del segle XV")),
+             ("Biografies del segle XVI", ("del segle XVI")),
+             ("Biografies del segle XVII", ("del segle XVII")),
+             ("Biografies del segle XVIII", ("del segle XVIII")),
+             ("Biografies del segle XIX", ("del segle XIX")),
+             ("Biografies del segle XX", ("del segle XX")),
+             ("Biografies del segle XXI", ("del segle XXI")),
+             ("Persones amb discapacitats", ("amb discapacitats")),
             ]
 tgrups1 = []
 for tcat in catsmirar:
@@ -610,9 +715,10 @@ print("tgrups2:",len(tgrups2))
 lencats=desadicc(diccatvell, diccat, lencats)
 
 # categories barrejant noms en totes les posicions
-catsgrals = ["Categoria:Religiosos", "Categoria:Polonesos", 
+catsgrals = ["Categoria:Religiosos", "Categoria:Polonesos", "Categoria:Grecs otomans", 
              ("Categoria:Biografies per activitat",7),
-             "Categoria:Biografies per causa de la mort",]
+             "Categoria:Biografies per causa de la mort",
+             "Categoria:Nobles"]
 ctots = set()
 for el in catsgrals:
     if isinstance(el, tuple):
@@ -635,7 +741,6 @@ for catsup in ctots:
     gentilici = gentilici[0].lower()+gentilici[1:]
     #print(catsup,"/",gentilici)
     art0, cat0, diccat, diccatvell, art1, cats=miracat(catsup, dicc=diccat, diccvell=diccatvell, 
-    
                                                  vell=True, llegir=False, prof=6)
     for subcat in cats:
         if re.search(gentilici, subcat):# or re.search(gentilici.casefold(),subcat):
@@ -680,13 +785,13 @@ if ordena:
         if re.search(" per |guerra (mundial|civil)",cat.casefold()):
             print(i,"/",n, cat, "Descartada")
             continue
-        if re.search("(emperadors( romans)?|rei(ne)?s|prínceps|governants|presidents|caps d'estat|(grans )?ducs|(primers )?ministres) d", cat.casefold()):
+        if re.search("(emperadors( romans)?|rei(ne)?s|prínceps|governants|presidents|caps d'estat|(grans )?ducs|(primers )?ministres|exarques) d", cat.casefold()):
             print(i,"/",n, cat, "Descartada")
             continue
         if re.search("((arque)?bisbes|patriarques|governadors|alcaldes|comtes|ducs|marquesos|senyors|barons) d", cat.casefold()):
             print(i,"/",n, cat, "Descartada")
             continue
-        if re.search("(alcaldes|governadors|emperadors) .* d", cat.casefold()):
+        if re.search("(alcaldes|governadors|emperadors|omeies) .* d", cat.casefold()):
             print(i,"/",n, cat, "Descartada")
             continue
         if re.search("professors al?s? ", cat.casefold()):
@@ -697,6 +802,15 @@ if ordena:
             continue
         if re.search("Categoria:(Sindicats|Estats|Obres|Pel·lícules)", cat):
             print(i,"/",n, cat, "Descartada (no biografies)")
+            continue
+        if re.search("Categoria:Generals ", cat):
+            print(i,"/",n, cat, "Descartada (són més per exèrcit que per gentilici)")
+            continue
+        if "Categoria:Català" in tcat[1]:
+            print(i,"/",n, cat, "Descartada (aquí català no gentilici)")
+            continue
+        if "Categoria:Senadors" in tcat[1] or "Categoria:Diputats" in tcat[1]:
+            print(i,"/",n, cat, "Descartada (categoria per jurisdicció i no per gentilici)")
             continue
         art0, cat0, diccat, diccatvell, art1, cat1=miracat(cat, dicc=diccat, diccvell=diccatvell, vell=True, prof=10)
         mida = len(cat1)
@@ -773,14 +887,26 @@ for tcat in catsllococu:
     if re.search("pilots d('|e )", cat.casefold()) and not re.search("pilots (d'automobilisme|de motociclisme)", cat.casefold()):
         print("Descartada",cat)
         continue
-    if re.search("(reis|emperadors|virreis|bisbes|cabdills|kans) ", cat.casefold()):
+    if re.search("(reis|emperadors|virreis|bisbes|cabdills|kans|sultans) ", cat.casefold()):
         print("Descartada",cat)
+        continue
+    if re.search("(censors|dictadors|qüestors|cònsols|emperadors|pretors|senadors) romans del segle", cat.casefold()):
+        print("Descartada perquè el segla del càrrec i el de la biografia poden ser diferents",cat)
+        continue
+    if re.search("(papes de roma|emperadors) del segle", cat.casefold()):
+        print("Descartada perquè el segla del càrrec i el de la biografia poden ser diferents",cat)
         continue
     if re.search("governants", cat.casefold()):
         print("Descartada provisionalment per problemàtica",cat)
         continue
+#    if re.search("senadors italians", cat.casefold()):
+#        print("Descartada per ambígua (els senadors romans procedents d'Itàlia també hi van?)",cat)
+#        continue
     if re.search("grups humans|guerra mundial", cat.casefold()):
         print("Descartada",cat)
+        continue
+    if re.search("(marxistes|anarquistes|autodidactes)$", cat.casefold()):
+        print("Descartada perquè no totes les categories per ideologia o circumstàncies surten d'interseccions",cat)
         continue
     if re.search("olímpi(c|que)s", cat.casefold()):# and not re.search("catalans|valencians|balears",cat.casefold()):
         print("Descartada per ser ambigu que sigui una categoria per origen",cat)
@@ -788,11 +914,33 @@ for tcat in catsllococu:
     if re.search("diputats d.* a l'assemblea nacional", cat.casefold()) and not re.search("catalans|valencians|balears",cat.casefold()):
         print("Descartada",cat)
         continue
+    if re.search(" internacionals amb |irlandeses", cat.casefold()):
+        print("Descartada (seleccions nacionals) o categories d'esportistes femenins mal identificades a Wikidata",cat)
+        continue
     if re.search("alcaldes franquistes|dictadors", cat.casefold()): # no tots els que han estat alcaldes i franquistes són alcaldes franquistes
         print("Descartada",cat)
         continue
-    if re.search("espanyols|turcs|israelians", cat.casefold()) and not re.search("jueus israelians", cat.casefold()): #|bascos|francesos
+    if re.search("gitanos", cat.casefold()): # pendent que la categorització dels gitanos sigui per origen
+        print("Descartada fins que la categorització dels gitanos sigui per origen",cat)
+        continue
+    if re.search("cantants d'òpera", cat.casefold()): 
+        print("Descartada fins que endrecem quines soprano són d'òpera i quines no",cat)
+        continue
+    if re.search("independentistes", cat.casefold()): 
+        print("Descartada perque`no està clar que vagi amb un gentilici",cat)
+        continue
+    # if re.search("europeus", cat.casefold()): 
+        # print("Descartada pendent d'arreglar els europeus erronis que són americans",cat)
+        # continue
+    if re.search("turcs|israelians|palestins", cat.casefold()) and not re.search("jueus israelians", cat.casefold()): #|bascos|espanyols|francesos
         print("Descartada provisionalment",cat)
+        continue
+    if re.search("Categoria:Fabricants de motocicletes", cat):
+        print("No és categoria de biografies",cat)
+        continue
+    if cat in ["Categoria:Militants de Podem Catalunya", "Categoria:Enginyers industrials", "Categoria:Il·lustradors científics", "Categoria:Il·lustradors botànics", 
+    "Categoria:Califes omeies", "Categoria:Enginyers militars", "Categoria:Filòsofs polítics"]:
+        print("Categoria que no surt d'una intersecció")
         continue
     catA=tcat[1][0]
     catB=tcat[1][1]
@@ -806,6 +954,9 @@ for tcat in catsllococu:
     lencats=desadicc(diccatvell, diccat, lencats)
     posar = (articlesA & articlesB) - articles
     print("Posar provisionalment:", posar, len(posar))
+    if re.search("[Aa]ctivistes", cat) and len(posar)>100:
+        print("Categories grans d'activistes provisionalment desactivades.", len(posar), "articles")
+        continue
     if not (cat in (cat1A & cat1B)):
         missatge = cat+" no és a la intersecció entre "+catA+" ("+str(cat in cat1A)+") i "+catB+" ("+str(cat in cat1B)+")"
         print(missatge)
@@ -813,10 +964,10 @@ for tcat in catsllococu:
         existeix = True
         try:
             text0=pwb.Page(site, cat).get()
-        except pwb.IsRedirectPage:
+        except pwb.exceptions.IsRedirectPageError:
             print("Redirecció:", cat)
             existeix=False
-        except pwb.NoPage:
+        except pwb.exceptions.NoPageError:
             existeix=False
             print("La categoria no existeix:", cat)
         if existeix:
@@ -872,7 +1023,7 @@ for tcat in catsllococu:
             redundants = {x for x in redundants if re.search("esborranys", x.casefold())}
         print("Redundants:",redundants)
         sumari = "intersecant [["+catA+"]] i [["+catB+"]]"
-        if qcat:
+        if len(posar)>minqcat:
             posaqcats([cat], redundants, arts=posar, nqcat=nqcat)
         else:
             posacat(cat, catsno=redundants, arts=posar, extrasumari=sumari)
